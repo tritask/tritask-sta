@@ -1,0 +1,422 @@
+LabelTop:
+
+// メニュー表示位置を変える.
+//   if キー押下 then キー割り当て経由なのでキャレット位置に.
+//   else メニューやツールバーからの起動とみなしてマウス位置に.
+// キー割り当ては修飾キーを必ず使うので shift, ctrl, alt を見れば十分.
+#use_mouse_pos = true;
+if(iskeydown(0x10)){
+	#use_mouse_pos = false;
+}
+if(iskeydown(0x11)){
+	#use_mouse_pos = false;
+}
+if(iskeydown(0x12)){
+	#use_mouse_pos = false;
+}
+
+#cnt=0;
+#I_ADD      = #cnt; #cnt=#cnt+1;
+#I_ADDINBO  = #cnt; #cnt=#cnt+1;
+#I_COPY     = #cnt; #cnt=#cnt+1;
+#I_START    = #cnt; #cnt=#cnt+1;
+#I_END      = #cnt; #cnt=#cnt+1;
+#I_SEP1     = #cnt; #cnt=#cnt+1;
+#I_JUMP_STA = #cnt; #cnt=#cnt+1;
+#I_CLR_DATE = #cnt; #cnt=#cnt+1;
+#I_TO_TODAY = #cnt; #cnt=#cnt+1;
+#I_SEP2     = #cnt; #cnt=#cnt+1;
+#I_SORT     = #cnt; #cnt=#cnt+1;
+#I_WALK     = #cnt; #cnt=#cnt+1;
+#I_SEP3     = #cnt; #cnt=#cnt+1;
+#I_EDIT_ME  = #cnt;
+
+MenuDefinition:
+
+// [[[ menu item start
+#idx=#I_ADD; $items[#idx]      = "(&A)Add Task";
+#idx=#I_ADDINBO; $items[#idx]  = "(&X)Add Inbox";
+#idx=#I_COPY; $items[#idx]     = "(&C)Copy Task";
+#idx=#I_START; $items[#idx]    = "(&S)Start Task";
+#idx=#I_END; $items[#idx]      = "(&E)End Task";
+#idx=#I_SEP1; $items[#idx]     = "\x01";
+#idx=#I_JUMP_STA; $items[#idx] = "(&J)Jump to Starting-Task";
+#idx=#I_CLR_DATE; $items[#idx] = "(&I)Clear Date";
+#idx=#I_TO_TODAY; $items[#idx] = "(&T)Change to Today <Multi>";
+#idx=#I_SEP2; $items[#idx]     = "\x01";
+#idx=#I_SORT; $items[#idx]     = "(& )Sort";
+#idx=#I_WALK; $items[#idx]     = "(&D)Walk day <Multi>";
+#idx=#I_SEP3; $items[#idx]     = "\x01";
+#idx=#I_EDIT_ME; $items[#idx]  = "(&P)Programming this macro";
+#idx=#idx+1; #maxidx = #idx;
+// menu item end ]]]
+
+if(#use_mouse_pos==true){
+	mousemenuarray $items, #maxidx;
+}else{
+	menuarray $items, #maxidx;
+}
+
+Interpret:
+
+if(result==0){
+	// Cancel
+	endmacro;
+}
+#si = result-1;
+$sn = $items[#si];
+
+// 012345678901234567890123456789
+//                              INBOX
+// M 2017/07/11 Thu  9:52 10:33 YESTERDAY
+// M 2017/07/12 Wed             TODAY 未着手
+// M 2017/07/12 Wed  9:52       TODAY 作業中
+// M 2017/07/12 Wed  9:52 10:33 TODAY 終了
+// M 2017/07/13 Thu             TOMORROW
+#POS_SORTMARK    = 0;
+#POS_DATE        = 2;
+#POS_DOW         = 13;
+#POS_STARTTIME   = 17;
+#POS_ENDTIME     = 23;
+#POS_DESCRIPTION = 29;
+#LEN_SORTMARK    = 1;
+#LEN_DATE        = strlen("YYYY/MM/DD");
+#LEN_DOW         = strlen("DOW");
+#LEN_FULLDATE    = #LEN_DATE + 1 + #LEN_DOW; // includes a space.
+#LEN_TIME        = strlen("HH:MM");
+#LEN_BEFORE_DESC = #LEN_SORTMARK + 1 + #LEN_FULLDATE + 1 + (#LEN_TIME+1)*2;
+$EMPTY_SORTMARK  = " ";
+$EMPTY_DATE      = "          ";
+$EMPTY_DOW       = "   ";
+$EMPTY_TIME      = "     ";
+$EMPTY_FULLDATE  = $EMPTY_DATE + " " + $EMPTY_DOW;
+
+// 現在開いてる trita ファイル絡みの情報.
+$OPENING_FILE_FULLPATH = filename;
+
+// pythonw を使うと DOS 窓非表示で実行できる.
+// ただし pythonw を使うと秀丸エディタが再アクティブにならず
+// リロード確認ダイアログも出なくなってしまうため,
+// 明示的にリロードを行わせる必要がある.
+//$USING_PYTHON_BIN = "python"
+//#use_explicit_reload = false;
+$USING_PYTHON_BIN = "pythonw";
+#use_explicit_reload = true;
+
+ACTIONS:
+
+if(#si==#I_EDIT_ME){
+	$path = hidemarudir+"\\hidemaru.exe " + currentmacrofilename;
+	run $path;
+	endmacro;
+}
+
+Add:
+if(#si==#I_ADD){
+	call DO_ADD;
+	endmacro;
+}
+
+AddInbox:
+if(#si==#I_ADDINBO){
+	call DO_ADD;
+	call DO_CLEAR_DATE;
+	endmacro;
+}
+
+COPY:
+if(#si==#I_COPY){
+	call DO_COPY;
+	endmacro;
+}
+
+START:
+if(#si==#I_START){
+	call if_blank_then_end;
+
+	golinetop;
+	right #POS_STARTTIME;
+
+	// 既に入力済ならクリアする.
+	$curval = gettext(x, y, x+#LEN_TIME, y, 0);
+	call delete_timestr;
+	if($curval==$EMPTY_TIME){
+		call get_currenttime;
+		$curtime = $$return;
+		insert $curtime;
+	}else{
+		insert $EMPTY_TIME;
+	}
+
+	endmacro;
+}
+
+END:
+if(#si==#I_END){
+	// Start とほぼロジック一緒だけど、
+	// 別々の固有処理が入る可能性が高そうなのでいったんコピペしとく。
+	// その気配が無さそうなら DRY しちゃってもえーよ。
+
+	call if_blank_then_end;
+
+	golinetop;
+	right #POS_ENDTIME;
+
+	// 既に入力済ならクリアする.
+	$curval = gettext(x, y, x+#LEN_TIME, y, 0);
+	call delete_timestr;
+	if($curval==$EMPTY_TIME){
+		call get_currenttime;
+		$curtime = $$return;
+		insert $curtime;
+
+	  call DO_REPEAT_IF_POSSIBLE;
+
+	}else{
+		insert $EMPTY_TIME;
+	}
+
+	endmacro;
+}
+
+JUMP_TO_START:
+if(#si==#I_JUMP_STA){
+	// 検索設定が上書きされるのを防ぐため, 
+	// 現在の設定を保持してから検索を行い, 終わった後で復旧する.
+	#oldsettings = searchoption;
+	$oldgrepee   = grepfilebuffer;
+	$oldquery = ""; // 元々検索語は保持されてないのでテキトーに空文字で.
+
+	$query = "[0-9]{2}\\:[0-9]{2}( ){7}";
+	searchdown2 $query, regular, loop;
+
+	setsearch $oldquery, #oldsettings;
+	setgrepfile $oldgrepee;
+
+	endmacro;
+}
+
+CLEAR_DATE:
+if(#si==#I_CLR_DATE){
+	call DO_CLEAR_DATE;
+	endmacro;
+}
+
+CHANGE_TO_TODAY:
+if(#si==#I_TO_TODAY){
+	call if_not_trita_then_end;
+	call if_blank_then_end;
+
+	save;
+
+	call get_target_lineno_commandline;
+	$yargs = $$return;
+
+	$program = $USING_PYTHON_BIN + " " + currentmacrodirectory + "\\helper.py";
+	$args = "-i " + $OPENING_FILE_FULLPATH + " " + $yargs + " --to-today";
+	run $program + " " + $args;
+	call smart_reload;
+
+	endmacro;
+}
+
+SORT:
+if(#si==#I_SORT){
+	// 関係無いファイル上でうっかり実行しちゃった時に
+	// 悲惨なことになりかねないのでガードをかけておく.
+	call if_not_trita_then_end;
+
+	// 以後のソート処理は元ファイルを読み込んでから処理するため
+	// 上書き保存しておかないと現在の内容でソートされない.
+	save;
+
+	$program = $USING_PYTHON_BIN + " " + currentmacrodirectory + "\\helper.py";
+	$args = "-i " + $OPENING_FILE_FULLPATH + " --sort";
+	run $program + " " + $args;
+	call smart_reload;
+
+	endmacro;
+}
+
+WALK:
+if(#si==#I_WALK){
+	call if_not_trita_then_end;
+
+	$day_str = input("Input a day diff.(Ex: 1, +7, -7)");
+	if(result==false){
+		endmacro;
+	}
+
+	call DO_WALK $day_str;
+	endmacro;
+}
+
+endmacro;
+
+SUBROOTIN_ACTIONS:
+
+DO_CLEAR_DATE:
+	call if_blank_then_end;
+
+	golinetop;
+	right #POS_DATE;
+	call delete_fulldate;
+	insert $EMPTY_FULLDATE;
+
+	// タスク内容を編集するのが自然だと思う.
+	golinetop;
+	right #LEN_BEFORE_DESC;
+
+	return 0;
+
+DO_ADD:
+	if(linelen==0){
+		// 空行ならその位置に挿入する.
+	}else{
+		golinetop;
+		insertline;
+	}
+	call get_currentfulldate;
+	$fulldate = $$return;
+	insert $EMPTY_SORTMARK + " " + $fulldate + " " + $EMPTY_TIME + " " + $EMPTY_TIME + " ";
+
+	return 0;
+
+DO_WALK:
+	// 現在行の日付部分を walk する.
+	// @param[string] day_str walkしたい日数
+	$day_str = $$1;
+
+	save;
+
+	call get_target_lineno_commandline;
+	$yargs = $$return;
+	$program = $USING_PYTHON_BIN + " " + currentmacrodirectory + "\\helper.py";
+	$args = "-i " + $OPENING_FILE_FULLPATH + " " + $yargs + " -d " + $day_str + " --walk";
+	run $program + " " + $args;
+	call smart_reload;
+
+	return 0;
+
+DO_REPEAT_IF_POSSIBLE:
+	call if_not_trita_then_end;
+
+	call get_currentdescription;
+	$description = $$return;
+
+	#pos = strstr($description, "rep:");
+	if(#pos==-1){
+		return 0;
+	}
+
+	// 以下のやり方でリピートタスクをつくる.
+	// - 1. タスクを複製する
+	// - 2. 1 のタスクの rep 値を見て, その日数分だけ日付を walk する
+	call DO_COPY;
+
+	save;
+
+	$program = $USING_PYTHON_BIN + " " + currentmacrodirectory + "\\helper.py";
+	$args = "-i " + $OPENING_FILE_FULLPATH + " -y " + str(y) + " --repeat";
+	run $program + " " + $args;
+	call smart_reload;
+
+	return 0;
+
+DO_COPY:
+	call if_blank_then_end;
+
+	call get_currentline;
+	$curline = $$return;
+
+	// 次行を確保してコピーを挿入
+	golineend;
+	insertreturn;
+	golinetop; 
+	insert $curline;
+
+	// 開始終了部分は邪魔なので消す.
+	golinetop;
+	right #POS_STARTTIME;
+	call delete_timestr;
+	delete;
+	call delete_timestr;
+	insert $EMPTY_TIME + " " + $EMPTY_TIME;
+
+	// 複製後はタスク内容をいじるのが自然だと思う.
+	golineend;
+
+	return 0;
+
+SUBROOTINS:
+
+if_blank_then_end:
+	if(linelen==0){
+		endmacro;
+	}
+	return 0;
+
+if_not_trita_then_end:
+	if(filetype!=".trita"){
+		endmacro;
+	}
+	return 0;
+
+smart_reload:
+	if(#use_explicit_reload==true){
+		title "Reloading...";
+		reopen;
+		title 0;
+	}
+	return 0;
+
+delete_fulldate:
+	#i = 0;
+	while(#i < #LEN_FULLDATE){
+		delete;
+		#i = #i + 1;
+	}
+	return 0;
+
+delete_timestr:
+	#i = 0;
+	while(#i < #LEN_TIME){
+		delete;
+		#i = #i + 1;
+	}
+	return 0;
+
+get_target_lineno_commandline:
+	$targetline = "";
+	if(selecting==1){
+		$targetline = "-y " + str(seltopy) + " --y2 " + str(selendy);
+	}else{
+		$targetline = "-y " + str(y);
+	}
+	return $targetline;
+
+get_currentfulldate:
+	call get_currentdate;
+
+	$curdate = $$return;
+	call get_currentdow;
+	$dow = $$return;
+	return $curdate + " " + $dow;
+
+get_currentdate:
+	return year + "/" + month + "/" + day;
+
+get_currentdow:
+	$dowlist = "SunMonTueWedThuFriSat";
+	return midstr($dowlist, dayofweeknum*3, 3);
+
+get_currenttime:
+	return hour + ":" + minute;
+
+get_currentline:
+	return gettext(0, y, linelen ,y, 0);
+
+get_currentdescription:
+	call get_currentline;
+	$curline = $$return;
+	return midstr($curline, #POS_DESCRIPTION, )
