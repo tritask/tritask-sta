@@ -212,9 +212,11 @@ if(#si==#I_TO_TODAY){
 	call get_target_lineno_commandline;
 	$yargs = $$return;
 
+	title "Changing to today...";
 	$program = $USING_PYTHON_BIN + " " + currentmacrodirectory + "\\helper.py";
 	$args = "-i " + $OPENING_FILE_FULLPATH + " " + $yargs + " --to-today";
 	run $program + " " + $args;
+	title 0;
 	call smart_reload;
 
 	endmacro;
@@ -230,9 +232,11 @@ if(#si==#I_SORT){
 	// 上書き保存しておかないと現在の内容でソートされない.
 	save;
 
+	title "Sorting...";
 	$program = $USING_PYTHON_BIN + " " + currentmacrodirectory + "\\helper.py";
 	$args = "-i " + $OPENING_FILE_FULLPATH + " --sort";
 	run $program + " " + $args;
+	title 0;
 	call smart_reload;
 
 	endmacro;
@@ -291,9 +295,11 @@ DO_WALK:
 
 	call get_target_lineno_commandline;
 	$yargs = $$return;
+	title "Walking days...";
 	$program = $USING_PYTHON_BIN + " " + currentmacrodirectory + "\\helper.py";
 	$args = "-i " + $OPENING_FILE_FULLPATH + " " + $yargs + " -d " + $day_str + " --walk";
 	run $program + " " + $args;
+	title 0;
 	call smart_reload;
 
 	return 0;
@@ -316,9 +322,11 @@ DO_REPEAT_IF_POSSIBLE:
 
 	save;
 
+	title "Repeating...";
 	$program = $USING_PYTHON_BIN + " " + currentmacrodirectory + "\\helper.py";
 	$args = "-i " + $OPENING_FILE_FULLPATH + " -y " + str(y) + " --repeat";
 	run $program + " " + $args;
+	title 0;
 	call smart_reload;
 
 	return 0;
