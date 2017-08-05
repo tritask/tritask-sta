@@ -100,6 +100,19 @@ def parse_arguments():
 class Task:
     EMPTY_TIME = ' '*5
 
+    # [Marks]
+    #   inbo(Mark is a space)
+    # 1 td
+    # 2 tt, ts
+    # 3 tom
+    # 4 ye
+    INBO = ' '
+    TD   = '1'
+    TT   = '2'
+    TS   = TT
+    TOM  = '3'
+    YE   = '4'
+
     def __init__(self, line):
         #      01234567890123456789012345678
         fmt = 'M YYYY/MM/DD DOW HH:MM HH:MM '
@@ -121,8 +134,7 @@ class Task:
         self._endtime     = line[23:28]
         self._description = line[29:]
 
-        self._determin_sortmark()
-        self._complete_dow_if_nothing()
+        self.complete()
 
         # extract all options from description
         self._options = {}
@@ -132,27 +144,20 @@ class Task:
             key, value = elm.split(':')
             self._options[key] = value
 
-    def _complete_dow_if_nothing(self):
-        if len(self._date.strip()) and len(self._dow.strip())==0:
+    def complete(self):
+        self._complete_dow()
+        self._determin_sortmark()
+
+    def _complete_dow(self):
+        """ 曜日を日付から算出する. """
+        if len(self._date.strip()):
             dt = datestr2dt(self._date)
             self._dow = dt2dowstr(dt)
 
     def _determin_sortmark(self):
-        # [Marks]
-        #   inbo(Mark is a space)
-        # 1 td
-        # 2 tt, ts
-        # 3 tom
-        # 4 ye
-        INBO = ' '
-        TD   = '1'
-        TT   = '2'
-        TS   = TT
-        TOM  = '3'
-        YE   = '4'
-
+        """ ソートマークを日付と開始/終了時刻から算出する. """
         if len(self._date.strip())==0:
-            self._sortmark = INBO
+            self._sortmark = self.INBO
             return
 
         dt = datestr2dt(self._date)
@@ -165,26 +170,26 @@ class Task:
         delta = dt-today_without_time
         diff = int(delta.total_seconds())
         if diff<0:
-            self._sortmark = YE
+            self._sortmark = self.YE
             return
         if diff>0:
-            self._sortmark = TOM
+            self._sortmark = self.TOM
             return
 
         s, e = len(self._starttime.strip()), len(self._endtime.strip())
         if s==0 and e==0:
-            self._sortmark = TT
+            self._sortmark = self.TT
             return
         if s==0 and e:
             # 終了時間のみは容認しない.
             # 未記入に戻す.
-            self._sortmark = TT
+            self._sortmark = self.TT
             self._endtime = self.EMPTY_TIME
             return
         if s and e==0:
-            self._sortmark = TS
+            self._sortmark = self.TS
             return
-        self._sortmark = TD
+        self._sortmark = self.TD
 
     def hold_me(self):
         try:
@@ -273,6 +278,42 @@ class Task:
         self._date = '{0}/{1:02d}/{2:02d}'.format(newdt.year, newdt.month, newdt.day)
         self._dow  = dt2dowstr(newdt)
 
+    def if_invalid_then_to_today(self):
+        """ ye や tom の無効タスクはどうせ today に変える.
+        だったら自動的に変えてやろうって話.
+
+            yesterday todo     -> tt
+            yesterday starting -> ts
+            yesterday done
+            today     todo
+            today     starting
+            today     done
+            tomorrow  todo
+            tomorrow  starting -> ts
+            tomorrow  done     -> ts(いきなりtdだと困惑するのでtsで目立たせる)
+
+        ye, today, tom の判定には sortmark を用いる. """
+
+        s, e = len(self._starttime.strip()), len(self._endtime.strip())
+        if self._sortmark==self.YE:
+            if s==0 and e==0: # todo
+                self.to_today()
+                return
+            if s and e==0: # starting
+                self.to_today()
+                return
+            return
+        if self._sortmark == self.TOM:
+            if s and e==0: # starting
+                self.to_today()
+                return
+            if s and e: # done
+                self.to_today()
+                self._endtime = self.EMPTY_TIME
+                return
+            return
+        return
+
     def __str__(self):
         return '{0} {1} {2} {3} {4} {5}'.format(
             self._sortmark, self._date, self._dow,
@@ -301,8 +342,10 @@ def apply_skipping(lines):
         lines[i] = str(task)
 
 def apply_completion(lines):
+    """ 記述が不足している or 不正なタスクを可能な限り補完する. """
     for i, line in enumerate(lines):
         task = Task(line)
+        task.if_invalid_then_to_today()
         lines[i] = str(task)
 
 args = parse_arguments()
