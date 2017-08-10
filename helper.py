@@ -141,7 +141,7 @@ class Task:
         for elm in self._description.split(' '):
             if elm.find(':')==-1:
                 continue
-            key, value = elm.split(':')
+            key, value = elm.split(':', 1)
             self._options[key] = value
 
     def complete(self):
@@ -345,90 +345,112 @@ def apply_completion(lines):
     """ 記述が不足している or 不正なタスクを可能な限り補完する. """
     for i, line in enumerate(lines):
         task = Task(line)
+
         task.if_invalid_then_to_today()
+
+        # 補完後の内容でソートマークを反映したいので
+        # 最後に complete する.
+        task.complete()
         lines[i] = str(task)
 
 args = parse_arguments()
 
 MYDIR = os.path.abspath(os.path.dirname(__file__))
-infile = os.path.join(MYDIR, args.input)
+infile = args.input
 lines = file2list(infile)
 
-if args.debug and args.y!=None:
-    task = Task(lines[args.y])
-    print task
-    task.print_options()
+logfile = os.path.join(MYDIR, 'tritask.log')
+if not(os.path.exists(logfile)):
+    # new file if does not exists.
+    list2file(logfile, [])
+loglines = file2list(logfile)
 
-if args.walk:
-    y = args.y
-    y2 = args.y2
-    if y2==None:
-        y2 = y
-    assert_y(y, lines)
-    assert_y(y2, lines)
-    day = args.day
+try:
+    if args.debug and args.y!=None:
+        task = Task(lines[args.y])
+        print task
+        task.print_options()
 
-    for cnt in range(y2-y+1):
-        targetidx = cnt + y
-        line = lines[targetidx]
+    if args.walk:
+        y = args.y
+        y2 = args.y2
+        if y2==None:
+            y2 = y
+        assert_y(y, lines)
+        assert_y(y2, lines)
+        day = args.day
+
+        for cnt in range(y2-y+1):
+            targetidx = cnt + y
+            line = lines[targetidx]
+            task = Task(line)
+            task.walk(day)
+            lines[targetidx] = str(task)
+
+        outfile = infile
+        list2file(outfile, lines)
+        exit(0)
+
+    if args.repeat:
+        y = args.y
+        assert_y(y, lines)
+
+        line = lines[y]
         task = Task(line)
-        task.walk(day)
-        lines[targetidx] = str(task)
+        task.repeat_me()
 
-    outfile = infile
-    list2file(outfile, lines)
-    exit(0)
+        lines[y] = str(task)
 
-if args.repeat:
-    y = args.y
-    assert_y(y, lines)
+        outfile = infile
+        list2file(outfile, lines)
+        exit(0)
 
-    line = lines[y]
-    task = Task(line)
-    task.repeat_me()
+    if args.to_today:
+        y = args.y
+        y2 = args.y2
+        if y2==None:
+            y2 = y
+        assert_y(y, lines)
+        assert_y(y2, lines)
+        day = args.day
 
-    lines[y] = str(task)
+        for cnt in range(y2-y+1):
+            targetidx = cnt + y
+            line = lines[targetidx]
+            task = Task(line)
+            task.to_today()
+            lines[targetidx] = str(task)
 
-    outfile = infile
-    list2file(outfile, lines)
-    exit(0)
+        outfile = infile
+        list2file(outfile, lines)
+        exit(0)
 
-if args.to_today:
-    y = args.y
-    y2 = args.y2
-    if y2==None:
-        y2 = y
-    assert_y(y, lines)
-    assert_y(y2, lines)
-    day = args.day
+    if args.sort:
+        outfile = infile
 
-    for cnt in range(y2-y+1):
-        targetidx = cnt + y
-        line = lines[targetidx]
-        task = Task(line)
-        task.to_today()
-        lines[targetidx] = str(task)
+        # before sorting
+        # --------------
+        apply_holding(lines)
+        apply_skipping(lines)
+        apply_completion(lines)
 
-    outfile = infile
-    list2file(outfile, lines)
-    exit(0)
+        # sorting
+        # -------
+        lines.sort()
 
-if args.sort:
-    outfile = infile
+        # after sorthing
+        # --------------
+        pass
 
-    # before sorting
-    # --------------
-    apply_holding(lines)
-    apply_skipping(lines)
-    apply_completion(lines)
+        list2file(outfile, lines)
+        exit(0)
+except Exception as e:
+    errmsg = 'Type:{0} Detail:{1}'.format(str(type(e)), str(e))
+    creationdate = datetime.datetime.today().strftime('%Y/%m/%d %H:%M:%S')
+    logmsg = '{0} {1}'.format(creationdate, errmsg)
+    loglines.insert(0, logmsg)
+    list2file(logfile, loglines)
 
-    # sorting
-    # -------
-    lines.sort()
-
-    # after sorthing
-    # --------------
-    pass
-
-    list2file(outfile, lines)
-    exit(0)
+    # open logfile with system association.
+    os.system('start "" "{0}"'.format(logfile))
+    exit(1)
