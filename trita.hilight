@@ -198,6 +198,7 @@
 /RulerBackEx:0xFFFFFFFF
 /<HilightMulti>
 /<TreeWord>
+/0000,0002,0000,00000000,00010111,"( )( )-[-]+( )",""
 /<TreeWordEx>
 /TreeWordExData:0
 /<Defines>
