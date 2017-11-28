@@ -41,6 +41,12 @@ def is_weekday(weekday_val):
 def is_weekend(weekday_val):
     return not(is_weekday(weekday_val))
 
+def get_error_location(depth=0):
+    import inspect
+    frame = inspect.currentframe().f_back
+    lineno = frame.f_lineno
+    return lineon
+
 def dp(msg):
     if args.debug:
         print msg
@@ -77,6 +83,8 @@ def parse_arguments():
 
     parser.add_argument('--debug', default=False, action='store_true',
         help='Debug mode. (Show information to debug.)')
+    parser.add_argument('--raw-error', default=False, action='store_true',
+        help='Debug mode. (Show raw error message.)')
 
     parser.add_argument('-y', default=None, type=int,
         help='The start line number of a input line. 0-ORIGIN.')
@@ -203,9 +211,14 @@ class Task:
 
         self.walk(holdday)
 
+    def _is_not_completed(self):
+        if not(self._starttime.strip()) or not(self._endtime.strip()):
+            return True
+        return False
+
     def skip_me(self):
         # 未完了タスクのみ対象にする.
-        if not(self._starttime) or not(self._endtime):
+        if self._is_not_completed():
             return
 
         y = int(self._date[0:4])
@@ -309,7 +322,10 @@ class Task:
                 return
             if s and e: # done
                 self.to_today()
-                self._endtime = self.EMPTY_TIME
+                # 方針変更.
+                # Before) tomorrow done は目立たせるため today start
+                #         self._endtime = self.EMPTY_TIME
+                # After ) 未来のタスクを潰したいケースもあるので today done
                 return
             return
         return
@@ -445,6 +461,8 @@ try:
         list2file(outfile, lines)
         exit(0)
 except Exception as e:
+    if args.raw_error:
+        raise
     errmsg = 'Type:{0} Detail:{1}'.format(str(type(e)), str(e))
     creationdate = datetime.datetime.today().strftime('%Y/%m/%d %H:%M:%S')
     logmsg = '{0} {1}'.format(creationdate, errmsg)
