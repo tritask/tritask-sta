@@ -211,14 +211,10 @@ class Task:
 
         self.walk(holdday)
 
-    def _is_not_completed(self):
-        if not(self._starttime.strip()) or not(self._endtime.strip()):
-            return True
-        return False
-
     def skip_me(self):
-        # 未完了タスクのみ対象にする.
-        if self._is_not_completed():
+        # 日付が無い = Inbox タスクの場合は
+        # 日付時刻スキップのしようがないので処理スキップ.
+        if not(self._date.strip()):
             return
 
         y = int(self._date[0:4])
