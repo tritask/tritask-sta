@@ -6,13 +6,13 @@ import sys
 
 def file2list(filepath):
     ret = []
-    with open(filepath, 'r') as f:
+    with open(filepath, encoding='utf8', mode='r') as f:
         ret = [line.rstrip('\n') for line in f.readlines()]
     return ret
 
 def list2file(filepath, ls):
-    with open(filepath, 'w') as f:
-        f.writelines(['%s\n' % line for line in ls] )
+    with open(filepath, encoding='utf8', mode='w') as f:
+        f.writelines(['{:}\n'.format(line) for line in ls] )
 
 def is_monday(weekday_val):
     return weekday_val==0
@@ -49,10 +49,10 @@ def get_error_location(depth=0):
 
 def dp(msg):
     if args.debug:
-        print msg
+        print(msg)
 
 def abort(msg):
-    print 'Error: {0}'.format(msg)
+    print('Error: {0}'.format(msg))
     os.system('pause')
     exit(1)
 
@@ -256,6 +256,82 @@ class Task:
         self._date = '{0}/{1:02d}/{2:02d}'.format(dt.year, dt.month, dt.day)
         self._dow  = dt2dowstr(dt)
 
+    def timebind_me(self):
+        """ Time Bind: 指定時刻になった時にタスクを強調(上に表示)する仕組み.
+        - (1) タスクに timebind:HHMM-HHMM 属性で指定する
+        - (2) ソートする
+        すると, 現在日時が HH:MM - HH:MM の範囲内だったら当該タスクを強調してやる. """
+        try:
+            timebind_param = self._options['timebind']
+        except KeyError:
+            return
+
+        # [Format]
+        # timebind:HHMM-HHMM
+        # timebind:HHMM-      -> HH:MM - 23:59 まで
+
+        # interpret timebind line.
+        # ------------------------
+
+        ls = timebind_param.split('-')
+        if len(ls)!=2:
+            raise RuntimeError('TimeBind Format Error: Must be `HHMM-` or `HHMM:HHMM`')
+
+        starttimestr, endtimestr = ls
+        if len(endtimestr)==0:
+            endtimestr='2359'
+
+        today = datetime.datetime.today()
+        fixeddate = (today.year, today.month, today.day)
+        try:
+            starth, startm = int(starttimestr[0:2]), int(starttimestr[2:4])
+            endh, endm = int(endtimestr[0:2]), int(endtimestr[2:4])
+            dt_start = datetime.datetime(*fixeddate, starth, startm)
+            dt_end = datetime.datetime(*fixeddate, endh, endm)
+        except ValueError:
+            raise RuntimeError('TimeBind Format Error: Must be `HHMM-` or `HHMM:HHMM`')
+
+        # do timebind.
+        # ------------
+
+        timebindmark = '! '
+        marklen = len(timebindmark)
+
+        # 日付が明日以降のtimebind task に対しては mark を省く.
+        # -> rep:N timebind:HHMM-HHMM なタスクについては
+        #    タスク終了後, N日後日付で同タスクが複製される.
+        #    ここにも mark はついているが、この mark はジャマなので省くべき.
+        if self._sortmark==self.TOM:
+            self._description = self._description.lstrip(timebindmark)
+            return
+        # 日付が昨日未満の timebind task はどうせ終了タスクなので何もしない.
+        if self._sortmark==self.YE:
+            return
+
+        # となると, 日付が今日の timebind task のみ timebind 対象となる.
+        #
+        #  --------------------> t
+        #      s       e
+        #      <=======>
+        #      この範囲だったら timebind する.
+
+        dp('line: {}'.format(self._description))
+        dp('  start: {}'.format(dt_start))
+        dp('  end  : {}'.format(dt_end))
+        dp('  today: {}'.format(today))
+        dp('  t<s  : {}'.format(today<dt_start))
+        dp('  e<t  : {}'.format(dt_end<today))
+
+        if today < dt_start:
+            return
+        if dt_end < today:
+            return
+
+        # 既に mark が付いてたらもう付けない.
+        if len(self._description)>=marklen and self._description[0:marklen]==timebindmark:
+            return
+        self._description = '{}{}'.format(timebindmark, self._description)
+
     def repeat_me(self):
         try:
             repday = int(self._options['rep'])
@@ -335,7 +411,7 @@ class Task:
 
     def print_options(self):
         for k, v in self._options.items():
-            print '{0}: [{1}]'.format(k, v)
+            print('{0}: [{1}]'.format(k, v))
 
 def apply_holding(lines):
     for i, line in enumerate(lines):
@@ -365,6 +441,14 @@ def apply_completion(lines):
         task.complete()
         lines[i] = str(task)
 
+def apply_timebind(lines):
+    for i, line in enumerate(lines):
+        if line.find('timebind:')==-1:
+            continue
+        task = Task(line)
+        task.timebind_me()
+        lines[i] = str(task)
+
 args = parse_arguments()
 
 MYDIR = os.path.abspath(os.path.dirname(__file__))
@@ -380,7 +464,7 @@ loglines = file2list(logfile)
 try:
     if args.debug and args.y!=None:
         task = Task(lines[args.y])
-        print task
+        print(task)
         task.print_options()
 
     if args.walk:
@@ -445,6 +529,7 @@ try:
         apply_holding(lines)
         apply_skipping(lines)
         apply_completion(lines)
+        apply_timebind(lines)
 
         # sorting
         # -------
