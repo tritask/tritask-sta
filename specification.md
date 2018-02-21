@@ -1,6 +1,6 @@
 # tritask-sta specification
 <!-- toc -->
-- [tritask-sta](#tritask-sta)
+- [tritask-sta specification](#tritask-sta-specification)
 - [タスクの種類](#タスクの種類)
   - [有効なタスク](#有効なタスク)
   - [無効なタスク](#無効なタスク)
@@ -9,8 +9,9 @@
   - [日付と曜日](#日付と曜日)
   - [属性](#属性)
     - [繰り返し(Repeat)](#繰り返しrepeat)
-    - [スキップ(skip)](#スキップskip)
+    - [スキップ(Skip)](#スキップskip)
     - [ホールド(Hold)](#ホールドhold)
+    - [タイムバインド(TimeBind)](#タイムバインドtimebind)
 - [操作一覧](#操作一覧)
   - [TEMPLATE](#template)
   - [Add Task](#add-task)
@@ -111,7 +112,7 @@ YESTERDAY TODO, YESTERDAY START, TOMORROW DONE, TOMORROW START は存在しな�
   - `rep:7` 一週間に一度実行する繰り返し。
   - `rep:30` （おおよそ）一月に一度実行する繰り返し。
 
-### スキップ(skip)
+### スキップ(Skip)
 - `skipmon:1`, `skiptue:1`, ... `skipsun:1`
 - `skipweekday:1`
 - `skipweekend:1`
@@ -137,6 +138,19 @@ YESTERDAY TODO, YESTERDAY START, TOMORROW DONE, TOMORROW START は存在しな�
   - `hold:0` このタスクは常に日付が今日になる
   - `hold:1` このタスクは常に日付が明日になる
   - `hold:-1` このタスクは常に日付が昨日になる
+
+### タイムバインド(TimeBind)
+- `timebind:HHMM-HHMM`
+- `timebind:HHMM-`
+
+このタスクは、ソートされた時、現在時刻が `HH:MM - HH:MM` の範囲であれば、タスク名先頭にタイムバインドマーク `! ` が付与される。
+
+タイムバインドは「指定時刻の範囲内に限ってタスクを強調する」ための機能である。また、強調とはここでは「タスクを上方に表示する（ソートした時に上に来るようにする）」ことを意味する。
+
+- 例:
+  - `timebind:1155-1215` 11:55-12:15 の間に強調される
+  - `timebind:1730-` 17:30-23:59 の間に強調される(省略すると 23:59 で補う)
+  - `timebind:-17:30` **不正なフォーマット**
 
 # 操作一覧
 
