@@ -43,12 +43,12 @@
     - 秀丸エディタで trita ファイルを開き、trita 用設定を選んだ後、[trita.hilight](trita.hilight) を強調表示設定として読み込む
 
 ## 使い方、マニュアル
-使い方:
-
 tritask.mac マクロを実行するとメニューが表示されるので、実行したい操作を選択します。
 
-### 詳しい使い方
-[スタートアップガイド](https://github.com/tritask/tritask-spec/blob/master/startup_trita.md) を参照ください。
+詳細は以下を参照してください。
+
+- [スタートアップガイド](https://github.com/tritask/tritask-spec/blob/master/startup_trita.md)
+- [tritask-staの仕様](specification.md)
 
 ## 強調定義ファイル trita.hilight について
 秀丸エディタ上で trita ファイルを見易く＆扱いやすくするために、専用の強調定義ファイルを用意しています。
