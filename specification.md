@@ -8,12 +8,13 @@
   - [マーク](#マーク)
   - [日付と曜日](#日付と曜日)
   - [属性](#属性)
+    - [TEMPLATE](#template)
     - [繰り返し(Repeat)](#繰り返しrepeat)
     - [スキップ(Skip)](#スキップskip)
     - [ホールド(Hold)](#ホールドhold)
     - [タイムバインド(TimeBind)](#タイムバインドtimebind)
 - [操作一覧](#操作一覧)
-  - [TEMPLATE](#template)
+  - [TEMPLATE](#template-1)
   - [Add Task](#add-task)
   - [Add Inbox](#add-inbox)
   - [Copy Task](#copy-task)
@@ -101,6 +102,21 @@ YESTERDAY TODO, YESTERDAY START, TOMORROW DONE, TOMORROW START は存在しな�
 
 ## 属性
 
+### TEMPLATE
+- `(属性の表記方法1)`
+- `(属性の表記方法2)`
+- ...
+- (表記に関する補足1)
+- (表記に関する補足2)
+- ...
+
+(属性に関する概要や詳細説明)
+
+- 例
+  - `(属性の表記例1)` (例1に関する説明)
+  - `(属性の表記例2)` (例2に関する説明)
+  - ...
+
 ### 繰り返し(Repeat)
 - `rep:N`
 - N は 1 以上の整数
@@ -150,7 +166,7 @@ YESTERDAY TODO, YESTERDAY START, TOMORROW DONE, TOMORROW START は存在しな�
 - 例:
   - `timebind:1155-1215` 11:55-12:15 の間に強調される
   - `timebind:1730-` 17:30-23:59 の間に強調される(省略すると 23:59 で補う)
-  - `timebind:-17:30` **不正なフォーマット**
+  - `timebind:-1730` **不正なフォーマット**
 
 # 操作一覧
 
