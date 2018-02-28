@@ -1,7 +1,7 @@
 # tritask-sta
 [Tritask](https://github.com/tritask/tritask-spec) のオレオレ実装です。
 
-![tritask_sta_demo](https://user-images.githubusercontent.com/23325839/36590886-7f217442-18d3-11e8-995c-43ad03639287.gif)
+![tritask_sta_demo](https://user-images.githubusercontent.com/23325839/36819300-517d1a7a-1d2c-11e8-92bb-7cbcf4fd2cbd.gif)
 
 <!-- toc -->
 - [tritask-sta](#tritask-sta)
