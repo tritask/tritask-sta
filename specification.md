@@ -1,4 +1,6 @@
 # tritask-sta specification
+Tritask-sta の概要や仕様をまとめる。
+
 <!-- toc -->
 - [tritask-sta specification](#tritask-sta-specification)
 - [タスクの種類](#タスクの種類)
@@ -13,6 +15,7 @@
     - [スキップ(Skip)](#スキップskip)
     - [ホールド(Hold)](#ホールドhold)
     - [タイムバインド(TimeBind)](#タイムバインドtimebind)
+    - [リファレンス(Reference)](#リファレンスreference)
 - [操作一覧](#操作一覧)
   - [TEMPLATE](#template-1)
   - [Add Task](#add-task)
@@ -20,11 +23,14 @@
   - [Copy Task](#copy-task)
   - [Start Task](#start-task)
   - [End Task](#end-task)
-  - [Jump to Starting-Task](#jump-to-starting-task)
-  - [Clear Date](#clear-date)
-  - [Change to Today](#change-to-today)
-  - [Sort](#sort)
+  - [Close Task](#close-task)
   - [Walk day](#walk-day)
+  - [Walk +1 day](#walk-1-day)
+  - [Change to Today](#change-to-today)
+  - [Clear Date](#clear-date)
+  - [Sort](#sort)
+  - [Jump to Starting-Task](#jump-to-starting-task)
+  - [Open Reference](#open-reference)
   - [Programming this macro](#programming-this-macro)
 
 # タスクの種類
@@ -148,7 +154,7 @@ YESTERDAY TODO, YESTERDAY START, TOMORROW DONE, TOMORROW START は存在しな�
 - `hold:N`
 - N は整数
 
-このタスクは、ソートされた時に、今日を `0` として、その差分の日付が常に設定される
+このタスクは、ソートされた時に、今日を `0` として、その差分の日付が常に設定される。
 
 - 例
   - `hold:0` このタスクは常に日付が今日になる
@@ -167,6 +173,18 @@ YESTERDAY TODO, YESTERDAY START, TOMORROW DONE, TOMORROW START は存在しな�
   - `timebind:1155-1215` 11:55-12:15 の間に強調される
   - `timebind:1730-` 17:30-23:59 の間に強調される(省略すると 23:59 で補う)
   - `timebind:-1730` **不正なフォーマット**
+
+### リファレンス(Reference)
+- `ref:KEY`
+- KEY は1文字以上で、かつファイル名として採用できる文字列
+
+このタスクが持つリファレンス KEY を開く。
+
+リファレンスとはキーとファイルからなるメモ領域であり、実体は `(tritaファイルのあるディレクトリ)/ref` 配下に `(キー名).md` という形で保存される。
+
+リファレンスはタスクに関する補足情報を記述するのに便利である。
+
+キーは何でも良いが、tritask-sta では現在日時の YYMMDD_HHMMSS で固定する。
 
 # 操作一覧
 
@@ -287,6 +305,78 @@ After(14:30に終了した場合)
 
 開始時刻が書き込まれてない場合は無効タスク（開始してないのに終了している）となってしまうが、処理の中断や警告は行わない。
 
+## Close Task
+Start と End を同時に行う。
+
+Before
+
+```
+  2017/08/04 Fri             Iタスク1
+```
+
+After(14:30に開始した場合)
+
+```
+  2017/08/04 Fri 14:30 14:30Iタスク1
+```
+
+## Walk day
+指定タスクの日付を指定日だけ増減させる。複数選択対応。
+
+指定可能な増減値は整数値。
+
+- 増減値の例
+  - `-3` : 3日前
+  - `0` : 今日
+  - `1` : 1日後
+  - `+1` : 1日後
+
+## Walk +1 day
+1日後(+1) を設定する Walk day。複数選択対応。
+
+## Change to Today
+指定タスクの日付を今日にする。複数選択可能。
+
+Before（二つとも選択しているとする）
+
+```
+4 2017/08/02 Wed             タスク
+4                            タスク
+```
+
+After（今日が 17/08/05 とする）
+
+```
+2 2017/08/05 Sat             タスク
+2 2017/08/05 Sat             タスク
+```
+
+## Clear Date
+指定タスクの日付を空文字列にする（inboにする）。
+
+Before
+
+```
+  2017/08/04 Fri             タスクI
+```
+
+After
+
+```
+                             Iタスク
+```
+
+## Sort
+現在開いている trita ファイルに対してソートを実行する。
+
+ただしソートを実行する前に全行を走査し、以下の前処理を行う。
+
+- 日付に対応するマークを付ける（既にマークが記入されている場合は上書きする）
+- 日付に対応する曜日を埋める（既に曜日が記入されている場合は上書きする）
+- 属性の解釈を行い、当該タスクの中身を変更する
+  - 例1: hold がある場合、日付を指定日にホールドする
+  - 例2: skip がある場合、日付が指定スキップ日であれば、そうならなくなるまで日付を増やす
+
 ## Jump to Starting-Task
 ts のある行にジャンプする。
 
@@ -320,61 +410,22 @@ After
 
 ts が複数存在する場合、最初に登場する ts にジャンプする。
 
-本操作を続けて適用しても二つ目の ts、三つ目の ts というふうにジャンプはしない。
-
-## Clear Date
-指定タスクの日付を空文字列にする（inboにする）。
+## Open Reference
+指定タスクにリファレンスを付与する。
 
 Before
 
 ```
-  2017/08/04 Fri             タスクI
+  2018/04/26 Thu             テストI
 ```
 
 After
 
 ```
-                             Iタスク
+  2018/04/26 Thu             テスト ref:180426_131649I
 ```
 
-## Change to Today
-指定タスクの日付を今日にする。複数選択可能。
-
-Before（二つとも選択しているとする）
-
-```
-4 2017/08/02 Wed             タスク
-4                            タスク
-```
-
-After（今日が 17/08/05 とする）
-
-```
-2 2017/08/05 Sat             タスク
-2 2017/08/05 Sat             タスク
-```
-
-## Sort
-現在開いている trita ファイルに対してソートを実行する。
-
-ただしソートを実行する前に全行を走査し、以下の前処理を行う。
-
-- 日付に対応するマークを付ける（既にマークが記入されている場合は上書きする）
-- 日付に対応する曜日を埋める（既に曜日が記入されている場合は上書きする）
-- 属性の解釈を行う
-  - hold がある場合、日付を指定日にホールドする
-  - skip がある場合、日付が指定スキップ日であれば、そうならなくなるまで日付を増やす
-
-## Walk day
-指定タスクの日付を指定日だけ増減させる。複数選択対応。
-
-指定可能な増減値は整数値。
-
-- 増減値の例
-  - `-3` : 3日前
-  - `0` : 今日
-  - `1` : 1日後
-  - `+1` : 1日後
+リファレンスキー名は現在日時の `YYMMDD_HHSSMM` を自動的に用いる。また、付与後は当該リファレンスファイル( `YYMMDD_HHSSMM.md` )を「関連付けられたエディタ」で開く。
 
 ## Programming this macro
 マクロファイル tritask.mac を秀丸エディタで開く。

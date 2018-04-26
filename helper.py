@@ -4,6 +4,8 @@ import datetime
 import os
 import sys
 
+VERSION = '1.1.0'
+
 def file2list(filepath):
     ret = []
     with open(filepath, encoding='utf8', mode='r') as f:
@@ -72,6 +74,41 @@ def datestr2dt(datestr):
 def dt2dowstr(dt):
     return ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][dt.weekday()]
 
+def reference_opener(refinfo):
+    dirname = args.refconf_dir
+    ext = args.refconf_ext
+
+    do_not_use_new_creation = not(refinfo.use_new_creation)
+
+    # reference もデータなので trita ファイルと同じディレクトリにする.
+    # Q: 保存先を指定できるようにはしない?
+    # A: しない. コマンドライン引数をあまり複雑にしたくない.
+    tritafile_fullpath = os.path.abspath(args.input)
+    basedir = os.path.dirname(tritafile_fullpath)
+    dp('[Ref::BaseDir "{}"'.format(basedir))
+
+    outputdir_fullpath = os.path.join(basedir, dirname)
+    dp('[Ref::FullDir "{}"'.format(basedir))
+    if not(os.path.isdir(outputdir_fullpath)):
+        if do_not_use_new_creation:
+            return
+        os.mkdir(outputdir_fullpath)
+
+    refname = refinfo.name
+    reffile_name = '{}.{}'.format(refname, ext)
+    reffile_fullpath = os.path.join(outputdir_fullpath, reffile_name)
+    if not(os.path.exists(reffile_fullpath)):
+        if do_not_use_new_creation:
+            return
+        # reference ファイル単体で開いても関連がわかりやすよう
+        # 元タスク情報を書き込んでおく.
+        contents = []
+        contents.append(refinfo.taskline)
+        contents.append('') # 空行. 個人的好み.
+        list2file(reffile_fullpath, contents)
+
+    os.system('start "" "{0}"'.format(reffile_fullpath))
+
 def parse_arguments():
     import argparse
 
@@ -85,6 +122,9 @@ def parse_arguments():
         help='Debug mode. (Show information to debug.)')
     parser.add_argument('--raw-error', default=False, action='store_true',
         help='Debug mode. (Show raw error message.)')
+
+    parser.add_argument('--timebindmark', default='! ',
+        help='The time bind mark you want to use.')
 
     parser.add_argument('-y', default=None, type=int,
         help='The start line number of a input line. 0-ORIGIN.')
@@ -102,8 +142,37 @@ def parse_arguments():
     parser.add_argument('--sort', default=False, action='store_true',
         help='Do sort.')
 
+    parser.add_argument('--ref', default=False, action='store_true',
+        help='Open the reference writing space. MUST: -y')
+    parser.add_argument('--refconf-dir', default='ref',
+        help='--ref options: The location which the reference file saved.')
+    parser.add_argument('--refconf-ext', default='md',
+        help='--ref options: The extension which the reference file has.')
+
     args = parser.parse_args()
     return args
+
+class ReferenceInfo:
+    def __init__(self, name, task):
+        self._name = name
+        self._task = task
+
+        self._use_new_creation = True
+
+    def do_not_use_new_creation(self):
+        self._use_new_creation = False
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def use_new_creation(self):
+        return self._use_new_creation
+
+    @property
+    def taskline(self):
+        return str(self._task)
 
 class Task:
     EMPTY_TIME = ' '*5
@@ -256,7 +325,7 @@ class Task:
         self._date = '{0}/{1:02d}/{2:02d}'.format(dt.year, dt.month, dt.day)
         self._dow  = dt2dowstr(dt)
 
-    def timebind_me(self):
+    def timebind_me(self, timebindmark):
         """ Time Bind: 指定時刻になった時にタスクを強調(上に表示)する仕組み.
         - (1) タスクに timebind:HHMM-HHMM 属性で指定する
         - (2) ソートする
@@ -294,7 +363,6 @@ class Task:
         # do timebind.
         # ------------
 
-        timebindmark = '! '
         marklen = len(timebindmark)
 
         # 日付が明日以降のtimebind task に対しては mark を省く.
@@ -402,6 +470,24 @@ class Task:
             return
         return
 
+    def get_my_reference_name(self):
+        try:
+            refname = self._options['ref']
+        except KeyError:
+            raise RuntimeError('Reference attribute does not exists on this task.')
+
+        if len(refname) == 0:
+            raise RuntimeError('Reference value must not be a empty. (`ref:` is invalid)')
+
+        refinfo = ReferenceInfo(refname, self)
+
+        # 終了済タスクの場合は reference ファイルを作らない.
+        # 「古い reference ファイルは削除しておこう」等で消してるだけかもしれないから.
+        if len(self._endtime.strip()) != 0:
+            refinfo.do_not_use_new_creation()
+
+        return refinfo
+
     def __str__(self):
         return '{0} {1} {2} {3} {4} {5}'.format(
             self._sortmark, self._date, self._dow,
@@ -446,7 +532,7 @@ def apply_timebind(lines):
         if line.find('timebind:')==-1:
             continue
         task = Task(line)
-        task.timebind_me()
+        task.timebind_me(args.timebindmark)
         lines[i] = str(task)
 
 args = parse_arguments()
@@ -466,6 +552,16 @@ try:
         task = Task(lines[args.y])
         print(task)
         task.print_options()
+
+    if args.ref:
+        y = args.y
+        assert_y(y, lines)
+
+        line = lines[y]
+        task = Task(line)
+        refinfo = task.get_my_reference_name()
+        reference_opener(refinfo)
+        exit(0)
 
     if args.walk:
         y = args.y
