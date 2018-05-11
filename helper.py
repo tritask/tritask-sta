@@ -4,7 +4,7 @@ import datetime
 import os
 import sys
 
-VERSION = '1.1.0'
+VERSION = '1.2.0'
 
 def file2list(filepath):
     ret = []
@@ -115,16 +115,13 @@ def parse_arguments():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
+    # required
+    # --------
     parser.add_argument('-i', '--input', default=None, required=True,
         help='A input filename.')
 
-    parser.add_argument('--debug', default=False, action='store_true',
-        help='Debug mode. (Show information to debug.)')
-    parser.add_argument('--raw-error', default=False, action='store_true',
-        help='Debug mode. (Show raw error message.)')
-
-    parser.add_argument('--timebindmark', default='! ',
-        help='The time bind mark you want to use.')
+    # options
+    # -------
 
     parser.add_argument('-y', default=None, type=int,
         help='The start line number of a input line. 0-ORIGIN.')
@@ -142,12 +139,29 @@ def parse_arguments():
     parser.add_argument('--sort', default=False, action='store_true',
         help='Do sort.')
 
+    parser.add_argument('--timebindmark', default='! ',
+        help='The time bind mark you want to use.')
+
     parser.add_argument('--ref', default=False, action='store_true',
         help='Open the reference writing space. MUST: -y')
     parser.add_argument('--refconf-dir', default='ref',
         help='--ref options: The location which the reference file saved.')
     parser.add_argument('--refconf-ext', default='md',
         help='--ref options: The extension which the reference file has.')
+
+    # reporting
+    # ---------
+
+    parser.add_argument('--report', default=False, action='store_true',
+        help='Debug mode for reporting.')
+
+    # deugging
+    # --------
+
+    parser.add_argument('--debug', default=False, action='store_true',
+        help='Debug mode. (Show information to debug.)')
+    parser.add_argument('--raw-error', default=False, action='store_true',
+        help='Debug mode. (Show raw error message.)')
 
     args = parser.parse_args()
     return args
@@ -535,6 +549,314 @@ def apply_timebind(lines):
         task.timebind_me(args.timebindmark)
         lines[i] = str(task)
 
+class reporting:
+
+    def main():
+        reporting.report()
+
+    def _report_per_a_classifier(a_classifier, caption, report_outname):
+        """ @param a_classifier classifier.daily とか classifier.monthly とか
+        @param caption 'Daily' など観点名
+        @param report_outname レポート内容保存先ファイル名 """
+
+        # trita ファイルと同じディレクトリに保存する
+        report_outpdir = os.path.abspath(os.path.dirname(args.input))
+        report_outpath = os.path.join(report_outpdir, report_outname)
+
+        formatter = reporting.MarkdownFormatter(filename=report_outpath)
+
+        element_count = len(a_classifier.keys())
+        formatter.header(caption, element_count)
+
+        counter = reporting.Counter(a_classifier)
+        data_dict = counter.data_dict
+
+        # 降順でパースする
+        sorted_keys = sorted(data_dict.keys())
+        sorted_keys.reverse()
+
+        for k in sorted_keys:
+            classified_key = k
+            counted_data = data_dict[k]
+            formatter.body(counted_data, classified_key)
+
+        formatter.footer()
+
+        formatter.save()
+
+    def report():
+        countee_tasks = []
+        for idx,line in enumerate(lines):
+            countee_task = reporting.CounteeTask(line)
+            if countee_task.is_invalid():
+                continue
+            countee_tasks.append(countee_task)
+        dp('All {} tasks.'.format(len(countee_tasks)))
+
+        classifier = reporting.Classifier(countee_tasks)
+
+        # report 機能はコマンドライン引数をシンプルにしたい＆
+        # どうせオレオレ用なので保存ファイル名は決め打ちでいいっす.
+        reporting._report_per_a_classifier(classifier.daily, 'Daily', 'report_daily.md')
+        reporting._report_per_a_classifier(classifier.monthly, 'Monthly', 'report_monthly.md')
+        reporting._report_per_a_classifier(classifier.hourband, 'Hourly', 'report_hourly.md')
+
+    class Formatter:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def body(self, counted_data, classifiled_key):
+            self._aw_total_min  = counted_data.actual_worktime_total
+            self._aw_total_hour = round(self._aw_total_min/60, 1)
+            self._aw_avg_min    = round(counted_data.actual_worktime_average, 1)
+            self._task_count    = counted_data.task_count
+
+            self._body(classifiled_key)
+
+        def header(self, caption, element_count):
+            raise NotImplementedError
+
+        def footer(self):
+            raise NotImplementedError
+
+        def _body(self, classifiled_key):
+            raise NotImplementedError
+
+        def save(self):
+            raise NotImplementedError
+
+    class DebugPrintFormatter(Formatter):
+        def __init__(self, *args):
+            super().__init__(*args)
+
+            self._lines = []
+
+        def header(self, caption, element_count):
+            self._lines.append('[{}]'.format(caption))
+            self._lines.append('All {} keys.'.format(element_count))
+
+        def footer(self):
+            pass
+
+        def _body(self, classifiled_key):
+            line = '{} : {} tasks with Total:{}[M]({}[H]) Avg:{}[M]'.format(
+                classifiled_key,
+                self._task_count,
+                self._aw_total_min,
+                self._aw_total_hour,
+                self._aw_avg_min
+            )
+            self._lines.append(line)
+
+        def save(self):
+            for line in self._lines:
+                dp(line)
+
+    class MarkdownFormatter(Formatter):
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+
+            try:
+                filepath = kwargs['filename']
+            except KeyError:
+                raise RuntimeError('MarkdownFormatter requires the filepath to save!')
+
+            self._filepath = filepath
+            self._lines = []
+
+        def header(self, caption, element_count):
+            self._lines.append('# {}'.format(caption))
+            self._lines.append('All {} keys.'.format(element_count))
+            self._lines.append('')
+
+        def footer(self):
+            pass
+
+        def _body(self, classifiled_key):
+            line = '- {} : {} Tasks, Total:{}[H], Avg:{}[M]'.format(
+                classifiled_key,
+                self._task_count,
+                self._aw_total_hour,
+                self._aw_avg_min
+            )
+            self._lines.append(line)
+
+        def save(self):
+            list2file(self._filepath, self._lines)
+
+    class CountedData():
+        def __init__(self):
+            self._task_count = 0
+
+            self._actual_worktimes = []
+
+        def plus_task_count(self, count):
+            self._task_count += count
+
+        def add_actual_worktime(self, countee_task):
+            starttimestr = countee_task._starttime
+            endtimestr = countee_task._endtime
+
+            # 作業実績時間は end - start.
+            # これを datetime を使って計算する.
+            # datetime では year/month/day が必要なのでダミーを使う.
+
+            # 13:25 13:55
+            # ^^ ^^ ^^ ^^
+            # sh sm eh em
+
+            fixeddate = (2011, 11, 11)
+            try:
+                starth, startm = int(starttimestr[0:2]), int(starttimestr[3:5])
+                endh, endm = int(endtimestr[0:2]), int(endtimestr[3:5])
+                dt_start = datetime.datetime(*fixeddate, starth, startm)
+                dt_end = datetime.datetime(*fixeddate, endh, endm)
+            except ValueError:
+                # エラーは出ないと思ってるけど, とりあえず出してみるか.
+                dp('actual worktime calcerror at ' + countee_task)
+                raise
+
+            delta = dt_end - dt_start
+            actual_second = delta.total_seconds()
+
+            # tritask は分単位なので最低でも分で扱う.
+            # が, 時単位はでかすぎる(基本的にタスクは粒度が小さいはず)ので
+            # 時単位には丸めない.
+            actual_minute = int(actual_second/60)
+
+            # 1分未満のタスクはとりあえず 1 分として計算してみる.
+            # 細かい定期タスクが多い場合, 0ばかりになっちゃうから.
+            if actual_minute==0:
+                actual_minute = 1
+
+            self._actual_worktimes.append(actual_minute)
+
+        @property
+        def task_count(self):
+            return self._task_count
+
+        @property
+        def actual_worktime_total(self):
+            total = 0
+            for t in self._actual_worktimes:
+                total += t
+            return total
+
+        @property
+        def actual_worktime_average(self):
+            total = self.actual_worktime_total
+            average = total / len(self._actual_worktimes)
+            return average
+
+    class Counter():
+        #classified_dict = {
+        #   "2018/04/07" : [CounteeTask, CounteeTask, ...]
+        #   ...
+        #}
+        #
+        #counted_data_with_classified = {
+        #   "2018/04/07" : CountedData
+        #   ...
+        #}
+        def __init__(self, classified_dict):
+            self._counted_data_with_classified = {}
+
+            for k in classified_dict:
+                countee_tasks = classified_dict[k]
+
+                counted_data = reporting.CountedData()
+                task_count = len(countee_tasks)
+
+                # タスク数
+                counted_data.plus_task_count(task_count)
+
+                # 作業実績時間系
+                for countee_task in countee_tasks:
+                    counted_data.add_actual_worktime(countee_task)
+
+                self._counted_data_with_classified[k] = counted_data
+
+        @property
+        def data_dict(self):
+            return self._counted_data_with_classified
+
+    # 日毎, 月毎などの集約を行うクラス.
+    # 内部的には各タスクが返した「私はこのキーで分類してください」情報を
+    # そのままキーとして辞書に突っ込んでるだけ.
+    # (つまり全タスクを分類キー単位で仕分けたい)
+    class Classifier():
+        def __init__(self, countee_tasks):
+            self._d_daily = {}
+            self._d_monthly = {}
+            self._d_hourband = {}
+
+            for countee_task in countee_tasks:
+                key_daily = countee_task.key_daily
+                key_monthly = countee_task.key_monthly
+                key_hourband = countee_task.key_hourband
+
+                self._smart_append(self._d_daily, key_daily, countee_task)
+                self._smart_append(self._d_monthly, key_monthly, countee_task)
+                self._smart_append(self._d_hourband, key_hourband, countee_task)
+
+        def _smart_append(self, container, key, value):
+            if not key in container:
+                container[key] = []
+            container[key].append(value)
+
+        @property
+        def daily(self):
+            return self._d_daily
+
+        @property
+        def monthly(self):
+            return self._d_monthly
+
+        @property
+        def hourband(self):
+            return self._d_hourband
+
+    class CounteeTask(Task):
+        def __init__(self, *args):
+            super().__init__(*args)
+
+            self._is_invalid = False
+
+            # 以下のタスクは集計対象外.
+            # - 終了していないタスク
+            # - 区切り
+            # - インボックス(日付が未定)
+            is_not_ended = len(self._endtime.strip())==0
+            has_separator = self._description.find(' --') != -1
+            is_inbox = len(self._date.strip())==0
+            if is_not_ended or has_separator or is_inbox:
+                self._is_invalid = True
+                return
+
+        def is_invalid(self):
+            return self._is_invalid
+
+        # 1 2018/04/27 Fri 13:00 14:01 Task1
+        #  ||
+        #  VV
+        # Daily    : YYYY/MM/DD 2018/04/27
+        # Monthly  : YYYY/MM    2018/04
+        # Hour     : HH         13
+
+        @property
+        def key_daily(self):
+            return self._date
+
+        @property
+        def key_monthly(self):
+            return '/'.join(self._date.split('/')[:2])
+
+        @property
+        def key_hourband(self):
+            h_str = self._starttime.split(':')[0]
+            h_int = int(h_str)
+            return '{:02}'.format(h_int)
+
 args = parse_arguments()
 
 MYDIR = os.path.abspath(os.path.dirname(__file__))
@@ -552,6 +874,10 @@ try:
         task = Task(lines[args.y])
         print(task)
         task.print_options()
+
+    if args.report:
+        reporting.main()
+        exit(0)
 
     if args.ref:
         y = args.y
