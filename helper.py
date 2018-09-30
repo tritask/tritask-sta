@@ -4,7 +4,7 @@ import datetime
 import os
 import sys
 
-VERSION = '1.2.0'
+VERSION = '1.2.1'
 
 def file2list(filepath):
     ret = []
@@ -310,19 +310,36 @@ class Task:
         walk_count = 0
         ops = self._options
 
+        # skip:月 -> 月曜日はスキップ
+        # skip:月木 -> 月曜日と木曜日スキップ
+        # skip:平土 -> 平日と土曜日はスキップ
+        # skip:休水 -> 休日と水曜日はスキップ
+        skipees_by_str = ops.get('skip')
+        if skipees_by_str == None:
+            return
+        use_mon_skip = skipees_by_str.find('月')!=-1
+        use_tue_skip = skipees_by_str.find('火')!=-1
+        use_wed_skip = skipees_by_str.find('水')!=-1
+        use_thu_skip = skipees_by_str.find('木')!=-1
+        use_fri_skip = skipees_by_str.find('金')!=-1
+        use_sat_skip = skipees_by_str.find('土')!=-1
+        use_sun_skip = skipees_by_str.find('日')!=-1
+        use_weekday_skip = skipees_by_str.find('平')!=-1
+        use_weekend_skip = skipees_by_str.find('休')!=-1
+
         while True:
             wd = dt.weekday()
             do_skip = False
 
-            if ops.get('skipmon') and is_monday(wd) or \
-               ops.get('skiptue') and is_tuesday(wd) or \
-               ops.get('skipwed') and is_wednesday(wd) or \
-               ops.get('skipthu') and is_thursday(wd) or \
-               ops.get('skipfri') and is_friday(wd) or \
-               ops.get('skipsat') and is_saturday(wd) or \
-               ops.get('skipsun') and is_sunday(wd) or \
-               ops.get('skipweekday') and is_weekday(wd) or \
-               ops.get('skipweekend') and is_weekend(wd):
+            if use_mon_skip and is_monday(wd) or \
+               use_tue_skip and is_tuesday(wd) or \
+               use_wed_skip and is_wednesday(wd) or \
+               use_thu_skip and is_thursday(wd) or \
+               use_fri_skip and is_friday(wd) or \
+               use_sat_skip and is_saturday(wd) or \
+               use_sun_skip and is_sunday(wd) or \
+               use_weekday_skip and is_weekday(wd) or \
+               use_weekend_skip and is_weekend(wd):
                 do_skip = True
 
             if not(do_skip):
@@ -856,6 +873,9 @@ class reporting:
             h_str = self._starttime.split(':')[0]
             h_int = int(h_str)
             return '{:02}'.format(h_int)
+
+def __main_from_here__():
+    pass
 
 args = parse_arguments()
 
