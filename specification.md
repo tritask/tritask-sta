@@ -19,19 +19,27 @@ Tritask-sta の概要や仕様をまとめる。
     - [見積もり(Estimate)](#見積もりestimate)
 - [操作一覧](#操作一覧)
   - [TEMPLATE](#template-1)
+  - [================](#)
   - [Add Task](#add-task)
   - [Add Inbox](#add-inbox)
   - [Copy Task](#copy-task)
   - [Start Task](#start-task)
   - [End Task](#end-task)
   - [Close Task](#close-task)
+  - [================](#-1)
   - [Walk day](#walk-day)
   - [Walk +1 day](#walk-1-day)
   - [Change to Today](#change-to-today)
   - [Clear Date](#clear-date)
+  - [================](#-2)
   - [Sort](#sort)
   - [Jump to Starting-Task](#jump-to-starting-task)
   - [Open Reference](#open-reference)
+  - [Simple Completion](#simple-completion)
+  - [================](#-3)
+  - [Report Today](#report-today)
+  - [================](#-4)
+  - [Programming helper script](#programming-helper-script)
   - [Programming this macro](#programming-this-macro)
 
 # タスクの種類
@@ -194,6 +202,7 @@ YESTERDAY TODO, YESTERDAY START, TOMORROW DONE, TOMORROW START は存在しな�
 この属性を付与しておくと、Report Today 機能で「今日の総見積時間」や「今日すべてのタスクを終えるのにあと何分かかる見込みか」といった情報を算出できるようになる。
 
 # 操作一覧
+![menu](https://user-images.githubusercontent.com/23325839/47847929-16503b80-de10-11e8-9e79-9a6716b0f9b8.jpg)
 
 注釈
 - 「指定タスク」とは現在選択している（キャレットがある）行のタスクを指す
@@ -216,6 +225,8 @@ After
 ```
 
 (詳細説明)
+
+## ================
 
 ## Add Task
 現在行に tt を追加する。
@@ -327,6 +338,8 @@ After(14:30に開始した場合)
   2017/08/04 Fri 14:30 14:30Iタスク1
 ```
 
+## ================
+
 ## Walk day
 指定タスクの日付を指定日だけ増減させる。複数選択対応。
 
@@ -372,6 +385,8 @@ After
 ```
                              Iタスク
 ```
+
+## ================
 
 ## Sort
 現在開いている trita ファイルに対してソートを実行する。
@@ -433,6 +448,43 @@ After
 ```
 
 リファレンスキー名は現在日時の `YYMMDD_HHSSMM` を自動的に用いる。また、付与後は当該リファレンスファイル( `YYMMDD_HHSSMM.md` )を「関連付けられたエディタ」で開く。
+
+## Simple Completion
+指定タスクに対して補正(日付情報から正しい曜日文字列を算出する、ソートマークを正しく反映する等)をかける。
+
+Before
+
+```
+  2018/11/10IThu             テストI
+```
+
+After
+
+```
+3 2018/11/10ISat             テスト
+```
+
+ソートを行わずに、タスク一つのみに対して補正を行いたい場合に用いる。特に日付を手動で更新した際に、その日付が何曜日なのかを知りたい場合などに用いる。
+
+## ================
+
+## Report Today
+今日のタスク情報からレポートを作成し、ダイアログにて表示する。
+
+![today_report](https://user-images.githubusercontent.com/23325839/47847916-0f292d80-de10-11e8-96d1-1cc9b0187ee7.jpg)
+
+上記は以下を表している。
+
+- 今日は 26 個のタスクが存在する
+- 今日はあと 1.25H ですべてのタスクが終了する見込みである
+- 今日は 21:03 にすべてのタスクが終了する見込みである
+
+ただし見積もり(見込み)の計算は、見積もり属性 `m:(見積もり[分])` を付与したタスクのみ対象となる。付与していないタスクの見積時間は 0 分として扱われる。
+
+## ================
+
+## Programming helper script
+ヘルパースクリプト helper.py を秀丸エディタで開く。
 
 ## Programming this macro
 マクロファイル tritask.mac を秀丸エディタで開く。
