@@ -1,10 +1,25 @@
 # -*- coding: utf-8 -*-
 
+import ctypes
 import datetime
 import os
 import sys
 
-VERSION = '1.2.1'
+NAME    = 'Tritask'
+VERSION = '1.4.0'
+INFO    = '{} {}'.format(NAME, VERSION)
+
+MB_OK = 0
+def message_box(message, title, mbtype):
+    return ctypes.windll.user32.MessageBoxW(0, str(message), str(title), mbtype)
+
+def ok(message, title):
+    message_box(message, title, MB_OK)
+
+def open_version_dialog():
+    message = INFO
+    title = 'Version'
+    ok(message, title)
 
 def file2list(filepath):
     ret = []
@@ -70,6 +85,11 @@ def datestr2dt(datestr):
     d = int(datestr[8:10])
     dt = datetime.datetime(y, m, d)
     return dt
+
+def dt2datestr(dt):
+    """ @param dt A datetime.datetime object.
+    @return A string `YYYY/MM/DD formatted. """
+    return '{0}/{1:02d}/{2:02d}'.format(dt.year, dt.month, dt.day)
 
 def dt2dowstr(dt):
     return ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][dt.weekday()]
@@ -139,6 +159,9 @@ def parse_arguments():
     parser.add_argument('--sort', default=False, action='store_true',
         help='Do sort.')
 
+    parser.add_argument('--use-simple-completion', default=False, action='store_true',
+        help='Do simple completion of each line, but do not sort and to-today completion.')
+
     parser.add_argument('--timebindmark', default='! ',
         help='The time bind mark you want to use.')
 
@@ -152,11 +175,17 @@ def parse_arguments():
     # reporting
     # ---------
 
+    parser.add_argument('--today-dialog-report', default=False, action='store_true',
+        help='Display today report with dialog.')
+
     parser.add_argument('--report', default=False, action='store_true',
         help='Debug mode for reporting.')
 
     # deugging
     # --------
+
+    parser.add_argument('-v', '--version', default=False, action='store_true',
+        help='Display "{}" to version dialog.'.format(INFO))
 
     parser.add_argument('--debug', default=False, action='store_true',
         help='Debug mode. (Show information to debug.)')
@@ -235,11 +264,51 @@ class Task:
             key, value = elm.split(':', 1)
             self._options[key] = value
 
+    # is_xxxx() は既に sort されていることを前提とする.
+    # もっというと, 先に sort した後で使うことを想定している.
+    # (開発者都合だが sort mark 使った方が判定が楽だから....)
+
+    def is_today(self):
+        m = self._sortmark
+        if m==self.TT or m==self.TS or m==self.TD:
+            return True
+        return False
+
+    def is_today_done(self):
+        m = self._sortmark
+        if m==self.TD:
+            return True
+        return False
+
+    def is_hold(self):
+        try:
+            int(self._options['hold'])
+        except (KeyError, ValueError):
+            return False
+        return True
+
+    def get_estimate_info(self):
+        """ @return A taple: (result_as_boolean, 0 or estimate_minute) """
+        result = False
+        estimate_minute = 0
+
+        is_found_option = True
+        try:
+            int(self._options['m'])
+        except (KeyError, ValueError):
+            is_found_option = False
+
+        if is_found_option:
+            result = True
+            estimate_minute = int(self._options['m'])
+
+        return (result, estimate_minute)
+
     def complete(self):
-        self._complete_dow()
+        self._determin_dow()
         self._determin_sortmark()
 
-    def _complete_dow(self):
+    def _determin_dow(self):
         """ 曜日を日付から算出する. """
         if len(self._date.strip()):
             dt = datestr2dt(self._date)
@@ -289,7 +358,7 @@ class Task:
             return
 
         today = datetime.datetime.today()
-        self._date = '{0}/{1:02d}/{2:02d}'.format(today.year, today.month, today.day)
+        self._date = dt2datestr(today)
         self._dow  = dt2dowstr(today)
 
         self.walk(holdday)
@@ -353,7 +422,7 @@ class Task:
                 dt = dt_original
                 break
 
-        self._date = '{0}/{1:02d}/{2:02d}'.format(dt.year, dt.month, dt.day)
+        self._date = dt2datestr(dt)
         self._dow  = dt2dowstr(dt)
 
     def timebind_me(self, timebindmark):
@@ -441,7 +510,7 @@ class Task:
 
     def to_today(self):
         today = datetime.datetime.today()
-        self._date = '{0}/{1:02d}/{2:02d}'.format(today.year, today.month, today.day)
+        self._date = dt2datestr(today)
         self._dow  = dt2dowstr(today)
 
     def walk(self, day):
@@ -459,7 +528,7 @@ class Task:
         else:
             newdt = dt - delta
 
-        self._date = '{0}/{1:02d}/{2:02d}'.format(newdt.year, newdt.month, newdt.day)
+        self._date = dt2datestr(newdt)
         self._dow  = dt2dowstr(newdt)
 
     def if_invalid_then_to_today(self):
@@ -565,6 +634,60 @@ def apply_timebind(lines):
         task = Task(line)
         task.timebind_me(args.timebindmark)
         lines[i] = str(task)
+
+# Simple Completion: Task.complete() を行うだけ.
+def apply_simple_completion(lines):
+    for i, line in enumerate(lines):
+        # Task の ctor で complete() が走るので
+        # いったん to inst して to str するだけで completion できる.
+        task = Task(line)
+        lines[i] = str(task)
+
+def apply_today_report(lines):
+    today_task_count = 0
+    today_estimate_total_minute = 0
+
+    for i, line in enumerate(lines):
+        task = Task(line)
+        if not(task.is_today()):
+            continue
+
+        # ホールドされたタスクは区切りタスクだと思うので
+        # 集計対象には含めない.
+        if task.is_hold():
+            continue
+
+        today_task_count += 1
+
+        if not(task.is_today_done()):
+            # 未完了(Doneしてない)分のみ見積もりも計算
+            # -> あとどれくらいで終わるかが知りたい.
+            is_estimate_given, estimate_minute = task.get_estimate_info()
+            if is_estimate_given:
+                today_estimate_total_minute += estimate_minute
+
+    # あると便利な情報をついでにつくっておく
+    # --------------------------------------
+
+    today_estimate_total_hour = round(today_estimate_total_minute/60.0, 2)
+
+    _today_dt = datetime.datetime.today()
+    _today_estimate_total_delta_min = datetime.timedelta(minutes=today_estimate_total_minute)
+    _today_endtime_dt = _today_dt + _today_estimate_total_delta_min
+    today_endtime = _today_endtime_dt.strftime('%H:%M')
+
+
+    # ダイアログでレポート表示
+    # ------------------------
+
+    result_by_str = """Today: {} tasks, {:02}[H] estimated({}).""".format(
+        today_task_count,
+        today_estimate_total_hour,
+        today_endtime
+    )
+
+    title = '{} Today report'.format(NAME)
+    ok(result_by_str, title)
 
 class reporting:
 
@@ -879,6 +1002,10 @@ def __main_from_here__():
 
 args = parse_arguments()
 
+if args.version:
+    open_version_dialog()
+    exit(0)
+
 MYDIR = os.path.abspath(os.path.dirname(__file__))
 infile = args.input
 lines = file2list(infile)
@@ -897,6 +1024,10 @@ try:
 
     if args.report:
         reporting.main()
+        exit(0)
+
+    if args.today_dialog_report:
+        apply_today_report(lines)
         exit(0)
 
     if args.ref:
@@ -960,6 +1091,12 @@ try:
             lines[targetidx] = str(task)
 
         outfile = infile
+        list2file(outfile, lines)
+        exit(0)
+
+    if args.use_simple_completion:
+        outfile = infile
+        apply_simple_completion(lines)
         list2file(outfile, lines)
         exit(0)
 

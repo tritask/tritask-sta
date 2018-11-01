@@ -16,6 +16,7 @@ Tritask-sta の概要や仕様をまとめる。
     - [ホールド(Hold)](#ホールドhold)
     - [タイムバインド(TimeBind)](#タイムバインドtimebind)
     - [リファレンス(Reference)](#リファレンスreference)
+    - [見積もり(Estimate)](#見積もりestimate)
 - [操作一覧](#操作一覧)
   - [TEMPLATE](#template-1)
   - [Add Task](#add-task)
@@ -183,6 +184,14 @@ YESTERDAY TODO, YESTERDAY START, TOMORROW DONE, TOMORROW START は存在しな�
 リファレンスはタスクに関する補足情報を記述するのに便利である。
 
 キーは何でも良いが、tritask-sta では現在日時の YYMMDD_HHMMSS で固定する。
+
+### 見積もり(Estimate)
+- `m:N`
+- N は 1 以上の整数
+
+このタスクは N 分で終了予定であることを示す。
+
+この属性を付与しておくと、Report Today 機能で「今日の総見積時間」や「今日すべてのタスクを終えるのにあと何分かかる見込みか」といった情報を算出できるようになる。
 
 # 操作一覧
 
