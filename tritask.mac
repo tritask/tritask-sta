@@ -48,8 +48,8 @@ MenuDefinition:
 #idx=#I_END; $items[#idx]         = "(&E)End Task";
 #idx=#I_CLOSE; $items[#idx]       = "(&Q)Close Task";
 #idx=#I_SEP1; $items[#idx]        = "\x01";
-#idx=#I_WALK; $items[#idx]        = "(&D)Walk day        <Multi>";
-#idx=#I_WALK_1; $items[#idx]      = "(&1)Walk +1 day     <Multi>";
+#idx=#I_WALK; $items[#idx]        = "(&D)Walk day <Multi>";
+#idx=#I_WALK_1; $items[#idx]      = "(&1)Walk +1 day(Smart-walk) <Multi>";
 #idx=#I_TO_TODAY; $items[#idx]    = "(&T)Change to Today <Multi>";
 #idx=#I_CLR_DATE; $items[#idx]    = "(&I)Clear Date";
 #idx=#I_SEP2; $items[#idx]        = "\x01";
@@ -202,8 +202,7 @@ if(#si==#I_WALK){
 
 if(#si==#I_WALK_1){
 	call if_not_trita_then_end;
-	$day_str = "1";
-	call DO_WALK $day_str;
+	call DO_SMARTWALK;
 	endmacro;
 }
 
@@ -340,6 +339,19 @@ DO_WALK:
 	$yargs = $$return;
 	title "Walking days...";
 	$args = "-i " + $OPENING_FILE_FULLPATH + " " + $yargs + " -d " + $day_str + " --walk";
+	run $COMMANDLINE_HELPER + " " + $args;
+	title 0;
+	call smart_reload;
+
+	return 0;
+
+DO_SMARTWALK:
+	save;
+
+	call get_target_lineno_commandline;
+	$yargs = $$return;
+	title "Smartwalking...";
+	$args = "-i " + $OPENING_FILE_FULLPATH + " " + $yargs + " --smartwalk";
 	run $COMMANDLINE_HELPER + " " + $args;
 	title 0;
 	call smart_reload;

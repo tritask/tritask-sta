@@ -6,7 +6,7 @@ import os
 import sys
 
 NAME    = 'Tritask'
-VERSION = '1.4.0'
+VERSION = '1.6.0'
 INFO    = '{} {}'.format(NAME, VERSION)
 
 MB_OK = 0
@@ -156,14 +156,13 @@ def parse_arguments():
         help='Walk day in the current task with rep:n param. MUST: -y.')
     parser.add_argument('--walk', default=False, action='store_true',
         help='Walk day in the current task. MUST: -y and -d.')
+    parser.add_argument('--smartwalk', default=False, action='store_true',
+        help='Walk +N or +1 day in the current task. MUST: -y')
     parser.add_argument('--sort', default=False, action='store_true',
         help='Do sort.')
 
     parser.add_argument('--use-simple-completion', default=False, action='store_true',
         help='Do simple completion of each line, but do not sort and to-today completion.')
-
-    parser.add_argument('--timebindmark', default='! ',
-        help='The time bind mark you want to use.')
 
     parser.add_argument('--ref', default=False, action='store_true',
         help='Open the reference writing space. MUST: -y')
@@ -425,81 +424,6 @@ class Task:
         self._date = dt2datestr(dt)
         self._dow  = dt2dowstr(dt)
 
-    def timebind_me(self, timebindmark):
-        """ Time Bind: 指定時刻になった時にタスクを強調(上に表示)する仕組み.
-        - (1) タスクに timebind:HHMM-HHMM 属性で指定する
-        - (2) ソートする
-        すると, 現在日時が HH:MM - HH:MM の範囲内だったら当該タスクを強調してやる. """
-        try:
-            timebind_param = self._options['timebind']
-        except KeyError:
-            return
-
-        # [Format]
-        # timebind:HHMM-HHMM
-        # timebind:HHMM-      -> HH:MM - 23:59 まで
-
-        # interpret timebind line.
-        # ------------------------
-
-        ls = timebind_param.split('-')
-        if len(ls)!=2:
-            raise RuntimeError('TimeBind Format Error: Must be `HHMM-` or `HHMM:HHMM`')
-
-        starttimestr, endtimestr = ls
-        if len(endtimestr)==0:
-            endtimestr='2359'
-
-        today = datetime.datetime.today()
-        fixeddate = (today.year, today.month, today.day)
-        try:
-            starth, startm = int(starttimestr[0:2]), int(starttimestr[2:4])
-            endh, endm = int(endtimestr[0:2]), int(endtimestr[2:4])
-            dt_start = datetime.datetime(*fixeddate, starth, startm)
-            dt_end = datetime.datetime(*fixeddate, endh, endm)
-        except ValueError:
-            raise RuntimeError('TimeBind Format Error: Must be `HHMM-` or `HHMM:HHMM`')
-
-        # do timebind.
-        # ------------
-
-        marklen = len(timebindmark)
-
-        # 日付が明日以降のtimebind task に対しては mark を省く.
-        # -> rep:N timebind:HHMM-HHMM なタスクについては
-        #    タスク終了後, N日後日付で同タスクが複製される.
-        #    ここにも mark はついているが、この mark はジャマなので省くべき.
-        if self._sortmark==self.TOM:
-            self._description = self._description.lstrip(timebindmark)
-            return
-        # 日付が昨日未満の timebind task はどうせ終了タスクなので何もしない.
-        if self._sortmark==self.YE:
-            return
-
-        # となると, 日付が今日の timebind task のみ timebind 対象となる.
-        #
-        #  --------------------> t
-        #      s       e
-        #      <=======>
-        #      この範囲だったら timebind する.
-
-        dp('line: {}'.format(self._description))
-        dp('  start: {}'.format(dt_start))
-        dp('  end  : {}'.format(dt_end))
-        dp('  today: {}'.format(today))
-        dp('  t<s  : {}'.format(today<dt_start))
-        dp('  e<t  : {}'.format(dt_end<today))
-
-        if today < dt_start:
-            return
-        if dt_end < today:
-            return
-
-        # 既に mark が付いてたらもう付けない.
-        if len(self._description)>=marklen and self._description[0:marklen]==timebindmark:
-            return
-        self._description = '{}{}'.format(timebindmark, self._description)
-
     def repeat_me(self):
         try:
             repday = int(self._options['rep'])
@@ -530,6 +454,26 @@ class Task:
 
         self._date = dt2datestr(newdt)
         self._dow  = dt2dowstr(newdt)
+
+    def smartwalk(self):
+        """ smartwalk とは rep:N に対して N 日後を設定する Walk.
+        rep:N なタスクは N 日後に繰り越すことが多いが,
+        Walk だといちいち N を指定しなければならず手間.
+        Smart Walk:
+        - rep:N がある場合は N 日後に繰り越す.
+        - rep:N がない場合は翌日に繰り越す. """
+
+        # repeat_me() と実装が似ているが,
+        # rep:N が無いケースも考慮必要なため DRY の対象ではない.
+
+        DEFAULT_REPDAY_WHEN_NO_REP_ATTR = 1
+        repday = DEFAULT_REPDAY_WHEN_NO_REP_ATTR
+        try:
+            repday = int(self._options['rep'])
+        except (KeyError, ValueError):
+            pass
+
+        self.walk(repday)
 
     def if_invalid_then_to_today(self):
         """ ye や tom の無効タスクはどうせ today に変える.
@@ -625,14 +569,6 @@ def apply_completion(lines):
         # 補完後の内容でソートマークを反映したいので
         # 最後に complete する.
         task.complete()
-        lines[i] = str(task)
-
-def apply_timebind(lines):
-    for i, line in enumerate(lines):
-        if line.find('timebind:')==-1:
-            continue
-        task = Task(line)
-        task.timebind_me(args.timebindmark)
         lines[i] = str(task)
 
 # Simple Completion: Task.complete() を行うだけ.
@@ -1060,6 +996,25 @@ try:
         list2file(outfile, lines)
         exit(0)
 
+    if args.smartwalk:
+        y = args.y
+        y2 = args.y2
+        if y2==None:
+            y2 = y
+        assert_y(y, lines)
+        assert_y(y2, lines)
+
+        for cnt in range(y2-y+1):
+            targetidx = cnt + y
+            line = lines[targetidx]
+            task = Task(line)
+            task.smartwalk()
+            lines[targetidx] = str(task)
+
+        outfile = infile
+        list2file(outfile, lines)
+        exit(0)
+
     if args.repeat:
         y = args.y
         assert_y(y, lines)
@@ -1108,7 +1063,6 @@ try:
         apply_holding(lines)
         apply_skipping(lines)
         apply_completion(lines)
-        apply_timebind(lines)
 
         # sorting
         # -------

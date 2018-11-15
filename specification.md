@@ -14,7 +14,6 @@ Tritask-sta の概要や仕様をまとめる。
     - [繰り返し(Repeat)](#繰り返しrepeat)
     - [スキップ(Skip)](#スキップskip)
     - [ホールド(Hold)](#ホールドhold)
-    - [タイムバインド(TimeBind)](#タイムバインドtimebind)
     - [リファレンス(Reference)](#リファレンスreference)
     - [見積もり(Estimate)](#見積もりestimate)
 - [操作一覧](#操作一覧)
@@ -28,7 +27,7 @@ Tritask-sta の概要や仕様をまとめる。
   - [Close Task](#close-task)
   - [================](#-1)
   - [Walk day](#walk-day)
-  - [Walk +1 day](#walk-1-day)
+  - [Walk +1 day(Smart-walk)](#walk-1-daysmart-walk)
   - [Change to Today](#change-to-today)
   - [Clear Date](#clear-date)
   - [================](#-2)
@@ -167,19 +166,6 @@ YESTERDAY TODO, YESTERDAY START, TOMORROW DONE, TOMORROW START は存在しな�
   - `hold:0` このタスクは常に日付が今日になる
   - `hold:1` このタスクは常に日付が明日になる
   - `hold:-1` このタスクは常に日付が昨日になる
-
-### タイムバインド(TimeBind)
-- `timebind:HHMM-HHMM`
-- `timebind:HHMM-`
-
-このタスクは、ソートされた時、現在時刻が `HH:MM - HH:MM` の範囲であれば、タスク名先頭にタイムバインドマーク `! ` が付与される。
-
-タイムバインドは「指定時刻の範囲内に限ってタスクを強調する」ための機能である。また、強調とはここでは「タスクを上方に表示する（ソートした時に上に来るようにする）」ことを意味する。
-
-- 例:
-  - `timebind:1155-1215` 11:55-12:15 の間に強調される
-  - `timebind:1730-` 17:30-23:59 の間に強調される(省略すると 23:59 で補う)
-  - `timebind:-1730` **不正なフォーマット**
 
 ### リファレンス(Reference)
 - `ref:KEY`
@@ -351,8 +337,8 @@ After(14:30に開始した場合)
   - `1` : 1日後
   - `+1` : 1日後
 
-## Walk +1 day
-1日後(+1) を設定する Walk day。複数選択対応。
+## Walk +1 day(Smart-walk)
+`rep:N` があれば N 日後を、無ければ 1 日後(+1)を設定する Walk day。複数選択対応。
 
 ## Change to Today
 指定タスクの日付を今日にする。複数選択可能。
