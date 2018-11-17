@@ -1,4 +1,7 @@
 
+# 2018/11/17 v1.6.1
+- Modify ソート処理の性能改善(1万行など行数多い時の処理終了時間をおおよそ数十 % 削減)
+
 # 2018/11/15 v1.6.0
 - Add "Smart Walk"
 - Modify from "Walk +1 day" to "Walk +1 day(Smart-walk)"

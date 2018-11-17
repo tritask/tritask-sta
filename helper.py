@@ -6,7 +6,7 @@ import os
 import sys
 
 NAME    = 'Tritask'
-VERSION = '1.6.0'
+VERSION = '1.6.1'
 INFO    = '{} {}'.format(NAME, VERSION)
 
 MB_OK = 0
@@ -78,12 +78,26 @@ def assert_y(y, lines):
         abort('Out of range the line number "{0}", Max is "{1}".' \
               .format(y, len(lines)))
 
+
+# datetime() 生成はコストがかかる処理なので
+# 一度生成した分を保持しておいて使い回す.
+dt_store = {}
 def datestr2dt(datestr):
     """ @param datestr A string formatted with `YYYY/MM/DD`. """
     y = int(datestr[0:4])
     m = int(datestr[5:7])
     d = int(datestr[8:10])
-    dt = datetime.datetime(y, m, d)
+
+    # 文字列連結はコストが高いので数値計算だけでキーをつくる.
+    # 2011 10 12 -> 20111002
+    key = y*10000 + m*100 + d
+
+    if key in dt_store:
+        dt = dt_store[key]
+    else:
+        dt = datetime.datetime(y, m, d)
+        dt_store[key] = dt
+
     return dt
 
 def dt2datestr(dt):
@@ -93,6 +107,16 @@ def dt2datestr(dt):
 
 def dt2dowstr(dt):
     return ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][dt.weekday()]
+
+def today_and_today_without_time():
+    # without time について:
+    #     today() をそのまま使うと時分秒レベルの差が生じて
+    #     >0 や <0 で判定できないため,
+    #     時分秒を省いた datetime オブジェクトを別途作って利用する.
+
+    p1 = datetime.datetime.today()
+    p2 = datetime.datetime(p1.year, p1.month, p1.day)
+    return (p1, p2)
 
 def reference_opener(refinfo):
     dirname = args.refconf_dir
@@ -232,7 +256,23 @@ class Task:
     TOM  = '3'
     YE   = '4'
 
-    def __init__(self, line):
+    def __init__(self, line, predefined_todays=None):
+        """ @param predefined_todays A tuple (today, today_without_time). """
+
+        # For Performance
+        # ---------------
+
+        # 事前につくった today datetime object を使うことで
+        # Task インスタンス毎に新規生成するコストを抑える.
+        self._today_dt = None
+        self._today_dt_without_time = None
+        if predefined_todays!=None:
+            self._today_dt = predefined_todays[0]
+            self._today_dt_without_time = predefined_todays[1]
+
+        # Parse Basic elements
+        # --------------------
+
         #      01234567890123456789012345678
         fmt = 'M YYYY/MM/DD DOW HH:MM HH:MM '
         if len(line)<len(fmt):
@@ -253,7 +293,13 @@ class Task:
         self._endtime     = line[23:28]
         self._description = line[29:]
 
+        # Completion after parsing
+        # ------------------------
+
         self.complete()
+
+        # Parse task-attributes
+        # ---------------------
 
         # extract all options from description
         self._options = {}
@@ -320,11 +366,12 @@ class Task:
             return
 
         dt = datestr2dt(self._date)
-        today = datetime.datetime.today()
-        # today() をそのまま使うと時分秒レベルの差が生じて
-        # >0 や <0 で判定できないため,
-        # 時分秒を省いた datetime オブジェクトを作る必要がある.
-        today_without_time = datetime.datetime(today.year, today.month, today.day)
+
+        if self._today_dt!=None:
+            today = self._today_dt
+            today_without_time = self._today_dt_without_time
+        else:
+            today, today_without_time = today_and_today_without_time()
 
         delta = dt-today_without_time
         diff = int(delta.total_seconds())
@@ -553,7 +600,7 @@ def apply_holding(lines):
 
 def apply_skipping(lines):
     for i, line in enumerate(lines):
-        if line.find('skip')==-1:
+        if line.find('skip:')==-1:
             continue
         task = Task(line)
         task.skip_me()
@@ -561,8 +608,12 @@ def apply_skipping(lines):
 
 def apply_completion(lines):
     """ 記述が不足している or 不正なタスクを可能な限り補完する. """
+    predefined_todays = (TODAY_WHEN_EXECUTED, TODAY_WITHOUT_TIME_WHEN_EXECUTED)
+
     for i, line in enumerate(lines):
-        task = Task(line)
+        # today datetime object は生成に時間がかかるので
+        # 事前に生成していたものを参照させて生成時間をカット.
+        task = Task(line, predefined_todays)
 
         task.if_invalid_then_to_today()
 
@@ -951,6 +1002,17 @@ if not(os.path.exists(logfile)):
     # new file if does not exists.
     list2file(logfile, [])
 loglines = file2list(logfile)
+
+# 今日の datetime オブジェクトは生成にそこそこ時間がかかり,
+# Task クラス内で毎回つくるとタスク数が多い(例: 1 万件以上)時に待ち時間が増える.
+# なので, 起動時に一度だけつくっておいて, これを使い回すようにする.
+#
+# 使いどころ:
+#     頻繁に呼び出される処理(ソート時に呼び出されるポイントなど)
+#
+# 使わなくてもいいところ:
+#     たまに呼び出される処理(レポート機能など)
+TODAY_WHEN_EXECUTED, TODAY_WITHOUT_TIME_WHEN_EXECUTED = today_and_today_without_time()
 
 try:
     if args.debug and args.y!=None:
