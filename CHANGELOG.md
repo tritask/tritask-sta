@@ -1,3 +1,22 @@
+# 2018/12/10 v1.6.1+
+- Add キー割り当てから Start Task, End Task, Sort を呼び出せるようにする
+
+## キー割り当てから各操作を一発で呼び出す
+今回、tritask.mac 内の操作をキー割り当てから一発で呼び出す機能を追加した。
+
+設定手順:
+
+- (1) tritask_cmd_start.mac や tritask_cmd_end.mac をマクロ登録する
+- (2) 1 に対してキー割り当てを割り当てる
+  - 例: PageUp に tritask_cmd_start を、PageDown に tritask_cmd_end を
+
+利用方法:
+
+- キー割り当てにて割り当てたショートカットキーを押す
+
+制約事項:
+
+- tritask_cmd_XXXX.mac は tritask.mac と同じフォルダに置く必要がある
 
 # 2018/11/17 v1.6.1
 - Modify ソート処理の性能改善(1万行など行数多い時の処理終了時間をおおよそ数十 % 削減)

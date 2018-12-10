@@ -1,5 +1,9 @@
 LabelTop:
 
+____DEFINE____:
+
+FIX_DISPLAYPOS:
+
 // メニュー表示位置を変える.
 //   if キー押下 then キー割り当て経由なのでキャレット位置に.
 //   else メニューやツールバーからの起動とみなしてマウス位置に.
@@ -14,6 +18,8 @@ if(iskeydown(0x11)){
 if(iskeydown(0x12)){
 	#use_mouse_pos = false;
 }
+
+MENU_CONSTRUCTION:
 
 #cnt=0;
 #I_ADD         = #cnt; #cnt=#cnt+1;
@@ -37,8 +43,6 @@ if(iskeydown(0x12)){
 #I_SEP4        = #cnt; #cnt=#cnt+1;
 #I_EDIT_SCRI   = #cnt; #cnt=#cnt+1;
 #I_EDIT_ME     = #cnt;
-
-MenuDefinition:
 
 // [[[ menu item start
 #idx=#I_ADD; $items[#idx]         = "(&A)Add Task";
@@ -64,21 +68,6 @@ MenuDefinition:
 #idx=#I_EDIT_ME; $items[#idx]     = "(&P)Programming this macro";
 #idx=#idx+1; #maxidx = #idx;
 // menu item end ]]]
-
-if(#use_mouse_pos==true){
-	mousemenuarray $items, #maxidx;
-}else{
-	menuarray $items, #maxidx;
-}
-
-Interpret:
-
-if(result==0){
-	// Cancel
-	endmacro;
-}
-#si = result-1;
-$sn = $items[#si];
 
 CONSTS:
 
@@ -122,6 +111,42 @@ $USING_PYTHON_BIN = "pythonw";
 $FULLPATH_HIDEMARU_BIN = hidemarudir+"\\hidemaru.exe";
 $FULLPATH_HELPER       = currentmacrodirectory + "\\helper.py";
 $COMMANDLINE_HELPER    = $USING_PYTHON_BIN + " " + $FULLPATH_HELPER;
+
+____OPTION_INTERPRETATION____:
+
+// コマンドラインオプション解釈.
+// 最終的に DO_XXXX: を実行させる仕組み.
+
+$mode = getarg(0);
+if($mode=="mode_start"){
+	#si = #I_START;
+	goto ____ACTIONS____;
+}
+if($mode=="mode_end"){
+	#si = #I_END;
+	goto ____ACTIONS____;
+}
+if($mode=="mode_sort"){
+	#si = #I_SORT;
+	goto ____ACTIONS____;
+}
+
+____MENU_TRACKING____:
+
+// メニュー表示.
+// ユーザー側が行動するまで停止.
+if(#use_mouse_pos==true){
+	mousemenuarray $items, #maxidx;
+}else{
+	menuarray $items, #maxidx;
+}
+// 何か行動したら再開.
+if(result==0){
+	// Cancel
+	endmacro;
+}
+#si = result-1;
+$sn = $items[#si];
 
 ____ACTIONS____:
 

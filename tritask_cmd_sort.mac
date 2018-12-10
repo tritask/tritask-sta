@@ -1,0 +1,4 @@
+$FULLPATH_BODY = currentmacrodirectory + "\\tritask.mac";
+$MODE = "mode_sort";
+execmacro $FULLPATH_BODY,$MODE;
+endmacro;
