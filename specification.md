@@ -47,16 +47,16 @@ Tritask-sta の概要や仕様をまとめる。
 
 ```
                              INBOX
-1 2017/07/11 Thu  9:52 10:33 YESTERDAY DONE
+4 2017/07/11 Thu  9:52 10:33 YESTERDAY DONE
 2 2017/07/12 Wed             TODAY TODO
-3 2017/07/12 Wed  9:52       TODAY START
-4 2017/07/12 Wed  9:52 10:33 TODAY DONE
-5 2017/07/13 Thu             TOMORROW TODO
+2 2017/07/12 Wed  9:52       TODAY START
+1 2017/07/12 Wed  9:52 10:33 TODAY DONE
+3 2017/07/13 Thu             TOMORROW TODO
 ```
 
 | 種類名 | 略称 | 説明 |
 | ------ | ---- | ---- |
-| INBOX| inbo | 実行日の決まっていないタスク（メモとしても使用可） |
+| INBOX | inbo | 実行日の決まっていないタスク（メモとしても使用可） |
 | YESTERDAY DONE| ye | 昨日以前に終了したタスク |
 | TODAY TODO | tt | 今日行うタスク |
 | TODAY START | ts | 現在実行中のタスク |
@@ -64,17 +64,16 @@ Tritask-sta の概要や仕様をまとめる。
 | TOMORROW TODO | tom | 明日以降のタスク |
 
 ## 無効なタスク
-
 YESTERDAY TODO, YESTERDAY START, TOMORROW DONE, TOMORROW START は存在しない。
 
 ```
-1 2017/07/11 Thu             YESTERDAY TODO      <=== INVALID
-1 2017/07/11 Thu  9:52       YESTERDAY START     <=== INVALID
+4 2017/07/11 Thu             YESTERDAY TODO      <=== INVALID
+4 2017/07/11 Thu  9:52       YESTERDAY START     <=== INVALID
 2 2017/07/12 Wed             TODAY TODO
-3 2017/07/12 Wed  9:52       TODAY START
-4 2017/07/12 Wed  9:52 10:33 TODAY DONE
-5 2017/07/13 Thu 10:00       TOMORROW START      <=== INVALID
-5 2017/07/13 Thu 10:00 10:22 TOMORROW DONE       <=== INVALID
+2 2017/07/12 Wed  9:52       TODAY START
+1 2017/07/12 Wed  9:52 10:33 TODAY DONE
+3 2017/07/13 Thu 10:00       TOMORROW START      <=== INVALID
+3 2017/07/13 Thu 10:00 10:22 TOMORROW DONE       <=== INVALID
 ```
 
 ただしツール側でバリデーションや修正処理を行う義務は無い。
