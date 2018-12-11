@@ -87,7 +87,7 @@ YESTERDAY TODO, YESTERDAY START, TOMORROW DONE, TOMORROW START は存在しな�
 | -------- | ---- |
 | ` `(スペース) | inbo(Inbox) |
 | `1` | td(Today Done) |
-| `2` | tt(Today Todo), ts(Today Starting) |
+| `2` | tt(Today Todo), ts(Today Start) |
 | `3` | tom(Tomorrow Todo) |
 | `4` | ye(Yesterday Done) |
 
