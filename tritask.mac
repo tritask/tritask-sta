@@ -62,7 +62,7 @@ MENU_CONSTRUCTION:
 #idx=#I_REF; $items[#idx]         = "(&R)Open Reference";
 #idx=#I_SIMPLE_COMP; $items[#idx] = "(&W)Simple Completion";
 #idx=#I_SEP3; $items[#idx]        = "\x01";
-#idx=#I_REPORT_TODAY; $items[#idx]= "(&.)Report Today";
+#idx=#I_REPORT_TODAY; $items[#idx]= "(&.)Report Today or Selected-Range";
 #idx=#I_SEP4; $items[#idx]        = "\x01";
 #idx=#I_EDIT_SCRI; $items[#idx]   = "(&P)Programming helper script";
 #idx=#I_EDIT_ME; $items[#idx]     = "(&P)Programming this macro";
@@ -509,8 +509,18 @@ DO_SIMPLE_COMPLETION:
 DO_REPORT_TODAY:
 	call if_not_trita_then_end;
 
-	title "Dislaying today report...";
-	$args = "-i " + $OPENING_FILE_FULLPATH + " --today-dialog-report";
+	// 複数選択時なら selected-range dialog report を、
+	// それ以外なら today dialog report を呼び出す。
+	if(selecting==1){
+		call get_target_lineno_commandline;
+		$yargs = $$return;
+		title "Dislaying report of selected range...";
+		$args = "-i " + $OPENING_FILE_FULLPATH + " " + $yargs + " --selected-range-dialog-report";
+	}else{
+		title "Dislaying today report...";
+		$args = "-i " + $OPENING_FILE_FULLPATH + " --today-dialog-report";
+	}
+
 	run $COMMANDLINE_HELPER + " " + $args;
 	title 0;
 

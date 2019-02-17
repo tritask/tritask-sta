@@ -6,7 +6,7 @@ import os
 import sys
 
 NAME    = 'Tritask'
-VERSION = '1.6.1'
+VERSION = '1.7.0'
 INFO    = '{} {}'.format(NAME, VERSION)
 
 MB_OK = 0
@@ -200,6 +200,8 @@ def parse_arguments():
 
     parser.add_argument('--today-dialog-report', default=False, action='store_true',
         help='Display today report with dialog.')
+    parser.add_argument('--selected-range-dialog-report', default=False, action='store_true',
+        help='Display report of selected range with dialog.')
 
     parser.add_argument('--report', default=False, action='store_true',
         help='Debug mode for reporting.')
@@ -676,6 +678,38 @@ def apply_today_report(lines):
     title = '{} Today report'.format(NAME)
     ok(result_by_str, title)
 
+def apply_selected_range_report(lines):
+    ''' 指定範囲をとにかく集計する.
+    Today やら Done やらは一切考えない.
+    絞りたいなら lines をつくる呼び出し元で対処する. '''
+
+    task_count = 0
+    estimate_total_minute = 0
+
+    for i, line in enumerate(lines):
+        task = Task(line)
+
+        # ホールドされたタスクは区切りタスクだと思うので
+        # 集計対象には含めない.
+        if task.is_hold():
+            continue
+
+        task_count += 1
+
+        is_estimate_given, estimate_minute = task.get_estimate_info()
+        if is_estimate_given:
+            estimate_total_minute += estimate_minute
+
+    estimate_total_hour = round(estimate_total_minute/60.0, 2)
+
+    result_by_str = """All {} tasks, {:02}[H].""".format(
+        task_count,
+        estimate_total_hour,
+    )
+
+    title = '{} Selected-Range report'.format(NAME)
+    ok(result_by_str, title)
+
 class reporting:
 
     def main():
@@ -1026,6 +1060,17 @@ try:
 
     if args.today_dialog_report:
         apply_today_report(lines)
+        exit(0)
+
+    if args.selected_range_dialog_report:
+        y = args.y
+        y2 = args.y2
+        if y==None or y2==None:
+            ok('Do select lines what you get the report.', NAME)
+            exit(0)
+        assert_y(y, lines)
+        assert_y(y2, lines)
+        apply_selected_range_report(lines[y:y2+1])
         exit(0)
 
     if args.ref:
