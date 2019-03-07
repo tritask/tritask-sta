@@ -1,6 +1,8 @@
 # tritask-sta specification
 Tritask-sta の概要や仕様をまとめる。
 
+対象バージョン: v1.7.0
+
 <!-- toc -->
 - [tritask-sta specification](#tritask-sta-specification)
 - [タスクの種類](#タスクの種類)
@@ -96,7 +98,7 @@ YESTERDAY TODO, YESTERDAY START, TOMORROW DONE, TOMORROW START は存在しな�
 ## 日付と曜日
 以下のパターンのみ有効とする。
 
-- inbo については、日付も曜日も空文字列(inbo)
+- inbo については、日付も曜日も空文字列
 - today, tom および ye については、有効な日付
 
 有効でないパターンが入力された時、ツールの挙動は Undefined である。
@@ -453,7 +455,7 @@ After
 
 ## ================
 
-## Report Today
+## Report Today or Selected-Range
 今日のタスク情報からレポートを作成し、ダイアログにて表示する。
 
 ![today_report](https://user-images.githubusercontent.com/23325839/47847916-0f292d80-de10-11e8-96d1-1cc9b0187ee7.jpg)
@@ -464,7 +466,10 @@ After
 - 今日はあと 1.25H ですべてのタスクが終了する見込みである
 - 今日は 21:03 にすべてのタスクが終了する見込みである
 
-ただし見積もり(見込み)の計算は、見積もり属性 `m:(見積もり[分])` を付与したタスクのみ対象となる。付与していないタスクの見積時間は 0 分として扱われる。
+注意事項など:
+
+- 見積もり(見込み)の計算は、見積もり属性 `m:(見積もり[分])` を付与したタスクのみ対象となる。付与していないタスクの見積時間は 0 分として扱われる。
+- 範囲選択を行っている場合は、今日のレポート(Today)ではなく「選択範囲内のタスク(Selected-Range)に関するレポート」を表示する
 
 ## ================
 
