@@ -1,13 +1,15 @@
-# tritask-sta specification
+# Tritask-sta specification
 Tritask-sta の概要や仕様をまとめる。
 
-対象バージョン: v1.7.0
+対象バージョン: v1.7.1
 
 <!-- toc -->
-- [tritask-sta specification](#tritask-sta-specification)
+- [Tritask-sta specification](#tritask-sta-specification)
+- [タスクのフォーマット](#タスクのフォーマット)
 - [タスクの種類](#タスクの種類)
   - [有効なタスク](#有効なタスク)
   - [無効なタスク](#無効なタスク)
+  - [無効タスクの対処](#無効タスクの対処)
 - [各フィールドの実装](#各フィールドの実装)
   - [マーク](#マーク)
   - [日付と曜日](#日付と曜日)
@@ -38,12 +40,27 @@ Tritask-sta の概要や仕様をまとめる。
   - [Open Reference](#open-reference)
   - [Simple Completion](#simple-completion)
   - [================](#-3)
-  - [Report Today](#report-today)
+  - [Report Today or Selected-Range](#report-today-or-selected-range)
   - [================](#-4)
   - [Programming helper script](#programming-helper-script)
   - [Programming this macro](#programming-this-macro)
 
+# タスクのフォーマット
+
+```
+1 2--------- 3-- 4---- 5---- 6----------
+M YYYY/MM/DD DOW HH:MM HH:MM DESCRIPTION
+```
+
+- 1 **マーク(Mark)** ソート用マーク。
+- 2 **実行日(Execution Date)** このタスクを実行する日。
+- 3 **曜日(DOW)** 日付に対応する曜日。
+- 4 **開始時刻(Start Time)** このタスクの開始時刻。
+- 5 **終了時刻(End Time)** このタスクの終了時刻。
+- 6 **タスク内容(Description)** タスク内容。後述する **属性(Attribute)** も記述可。
+
 # タスクの種類
+タスクは実行日、開始時刻、終了時刻などの値に応じて種類が分かれる。
 
 ## 有効なタスク
 
@@ -58,7 +75,7 @@ Tritask-sta の概要や仕様をまとめる。
 
 | 種類名 | 略称 | 説明 |
 | ------ | ---- | ---- |
-| INBOX | inbo | 実行日の決まっていないタスク（メモとしても使用可） |
+| INBOX | inbo | インボックス。実行日の決まっていないタスク（メモとしても使用可） |
 | YESTERDAY DONE| ye | 昨日以前に終了したタスク |
 | TODAY TODO | tt | 今日行うタスク |
 | TODAY START | ts | 現在実行中のタスク |
@@ -66,19 +83,29 @@ Tritask-sta の概要や仕様をまとめる。
 | TOMORROW TODO | tom | 明日以降のタスク |
 
 ## 無効なタスク
-YESTERDAY TODO, YESTERDAY START, TOMORROW DONE, TOMORROW START は存在しない。
+Tritask-sta では「今日のタスク（実行日が今日のタスク）」のみ扱うことを考える。もっと言えば人が過去や未来にタイムスリップできないように、Tritask でも過去のタスクや未来のタスクを開始することはできない。この考えに基づき、Tritask-sta では YESTERDAY TODO, YESTERDAY START, TOMORROW DONE, TOMORROW START を無効なタスクとして扱う。
 
 ```
-4 2017/07/11 Thu             YESTERDAY TODO      <=== INVALID
-4 2017/07/11 Thu  9:52       YESTERDAY START     <=== INVALID
+4 2017/07/11 Thu             YESTERDAY TODO      <=== 無効
+4 2017/07/11 Thu  9:52       YESTERDAY START     <=== 無効
 2 2017/07/12 Wed             TODAY TODO
 2 2017/07/12 Wed  9:52       TODAY START
 1 2017/07/12 Wed  9:52 10:33 TODAY DONE
-3 2017/07/13 Thu 10:00       TOMORROW START      <=== INVALID
-3 2017/07/13 Thu 10:00 10:22 TOMORROW DONE       <=== INVALID
+3 2017/07/13 Thu 10:00       TOMORROW START      <=== 無効
+3 2017/07/13 Thu 10:00 10:22 TOMORROW DONE       <=== 無効
 ```
 
-ただしツール側でバリデーションや修正処理を行う義務は無い。
+以下は無効と判断した理由である。
+
+| 種類名 | 無効である理由 |
+| ------ | -------------- |
+| YESTERDAY TODO  | 昨日のタスクは目に入らず、見失いやすいから |
+| YESTERDAY START | 昨日のタスクを開始することはありえないから |
+| TOMORROW START  | 未来のタスクを開始することはありえないから |
+| TOMORROW DONE   | 未来のタスクを終了することはありえないから |
+
+## 無効タスクの対処
+Tritask-sta では、無効なタスクについては **その実行日を今日に修正する** 措置を行う。こうすることでこれら無効なタスクが今日のタスクとして浮上し、目に付くようになる。目に付けば、何らかの対処ができる。
 
 # 各フィールドの実装
 
@@ -93,17 +120,17 @@ YESTERDAY TODO, YESTERDAY START, TOMORROW DONE, TOMORROW START は存在しな�
 | `3` | tom(Tomorrow Todo) |
 | `4` | ye(Yesterday Done) |
 
-意図としては、まずインボックスやメモなど汎用的な inbo は最上位に表示させる。また today, tom, ye については、today が一番使うはずなので一番上、次いで明日以降の予定である tom、最後に過去である ye の順にしてある。
+意図としては、まずメモ領域として使える inbo は最上位に表示させる。また today, tom, ye については、today が一番使うはずなので一番上、次いで明日以降の予定である tom、最後に過去である ye の順にしてある。
 
 ## 日付と曜日
 以下のパターンのみ有効とする。
 
-- inbo については、日付も曜日も空文字列
-- today, tom および ye については、有効な日付
+- inbo
+  - 日付も曜日も空文字列の時のみ有効
+- today, tom, ye
+  - 有効な日付が指定された時のみ有効
 
-有効でないパターンが入力された時、ツールの挙動は Undefined である。
-
-以下に実際のフォーマット例を挙げる。
+以下に例を挙げる。
 
 ```
                              inbo
@@ -111,8 +138,8 @@ YESTERDAY TODO, YESTERDAY START, TOMORROW DONE, TOMORROW START は存在しな�
 2 2017/07/12                 tt(曜日部分はソート時に補完される)
 2 2017/07/12 WED             tt(曜日部分はソート時に補完される)
 2 2017/07/12 abc             tt(曜日部分はソート時に補完される)
-2            Wed             不正なフォーマット(日付がない)
-2 2017/07/32 WED             不正なフォーマット(日付が有効でない)
+2            Wed             無効なフォーマット(日付がない)
+2 2017/07/32 WED             無効なフォーマット(日付が有効でない)
 ```
 
 ## 属性
@@ -308,7 +335,7 @@ After(14:30に終了した場合)
 
 もし repeat 属性がある場合、当該タスクを（日付を指定日後に変更してから）複製する。
 
-開始時刻が書き込まれてない場合は無効タスク（開始してないのに終了している）となってしまうが、処理の中断や警告は行わない。
+開始時刻が書き込まれてない場合は ~~無効タスク（開始してないのに終了している）となってしまうが、処理の中断や警告は行わない~~ 開始時刻も書き込む(v1.7.1より)。
 
 ## Close Task
 Start と End を同時に行う。
@@ -328,7 +355,7 @@ After(14:30に開始した場合)
 ## ================
 
 ## Walk day
-指定タスクの日付を指定日だけ増減させる。複数選択対応。
+指定タスクの日付を指定日だけ増減させる。複数選択可能。
 
 指定可能な増減値は整数値。
 
@@ -339,7 +366,7 @@ After(14:30に開始した場合)
   - `+1` : 1日後
 
 ## Walk +1 day(Smart-walk)
-`rep:N` があれば N 日後を、無ければ 1 日後(+1)を設定する Walk day。複数選択対応。
+`rep:N` があれば N 日後を、無ければ 1 日後(+1)を設定する Walk day。複数選択可能。
 
 ## Change to Today
 指定タスクの日付を今日にする。複数選択可能。

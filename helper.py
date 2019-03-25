@@ -6,7 +6,7 @@ import os
 import sys
 
 NAME    = 'Tritask'
-VERSION = '1.7.0'
+VERSION = '1.7.1'
 INFO    = '{} {}'.format(NAME, VERSION)
 
 MB_OK = 0

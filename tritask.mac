@@ -185,6 +185,19 @@ if(#si==#I_START){
 }
 
 if(#si==#I_END){
+	// starttime も endtime も両方とも空欄の場合,
+	// 愚直に end すると「まだ開始してないが終了したタスク」となり不正なので,
+	// close の処理を実施する.
+	call get_current_starttime;
+	$cur_starttime = $$return;
+	call get_current_endtime;
+	$cur_endtime = $$return;
+	if($cur_endtime == $EMPTY_TIME && $cur_starttime == $EMPTY_TIME){
+		call DO_START;
+		call DO_END;
+		endmacro;
+	}
+
 	call DO_END;
 	endmacro;
 }
@@ -278,9 +291,12 @@ DO_END:
 	golinetop;
 	right #POS_ENDTIME;
 
-	// 既に入力済ならクリアする.
+	// 既に入力済     -> クリアする.
+	// まだ入力がない -> 入力する, 加えて repeat 操作も実施.
+
 	$curval = gettext(x, y, x+#LEN_TIME, y, 0);
 	call delete_timestr;
+
 	if($curval==$EMPTY_TIME){
 		call get_currenttime;
 		$curtime = $$return;
@@ -341,14 +357,35 @@ DO_CLEAR_DATE:
 	return 0;
 
 DO_ADD:
+// 挙動のバリエーション:
+//
+// 2 2019/03/25 Mon             task today 1    ★1
+// 3 2019/03/26 Tue             task tomorrow   ★2
+// ★3
+//
+// 位置 1～2 の時はその行の datetime を使うことにする.
+// なぜ?
+//   -> より自然だから.
+//      特に 3 の位置でのタスク追加 = 26 日のタスクとして追加したい, を意味するから.
+//      v1.7.0 以前では(今日が 25 日だとしたら)25 日固定となり, 直感的でない.
+//
+// 位置 3 の時は v1.7.0 以前のとおり今日の datetime を使う.
+
 	if(linelen==0){
-		// 空行ならその位置に挿入する.
+		// 空行ならその位置に今日の日付を挿入する.
+		call get_currentfulldate;
+		$fulldate = $$return;
 	}else{
+		// 空行でないならその行の日付文字列を流用する.
 		golinetop;
+		call get_currentfulldatefield;
+		$fulldate = $$return;
+		if(strlen($fulldate) < #LEN_FULLDATE){
+			return;
+		}
 		insertline;
 	}
-	call get_currentfulldate;
-	$fulldate = $$return;
+
 	insert $EMPTY_SORTMARK + " " + $fulldate + " " + $EMPTY_TIME + " " + $EMPTY_TIME + " ";
 
 	return 0;
@@ -600,10 +637,20 @@ get_currenttime:
 get_currentline:
 	return gettext(0, y, linelen ,y, 0);
 
+get_currentfulldatefield:
+	call get_currentline;
+	$curline = $$return;
+	return midstr($curline, #POS_DATE, #LEN_FULLDATE);
+
 get_currentdescription:
 	call get_currentline;
 	$curline = $$return;
 	return midstr($curline, #POS_DESCRIPTION, );
+
+get_current_starttime:
+	call get_currentline;
+	$curline = $$return;
+	return midstr($curline, #POS_STARTTIME, #LEN_TIME);
 
 get_current_endtime:
 	call get_currentline;
