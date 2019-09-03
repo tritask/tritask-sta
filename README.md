@@ -16,6 +16,7 @@ tritask-sta は [タスク管理メソッド Tritask](https://github.com/tritask
     - [Q: リファレンス機能でリファレンスが開かれません](#q-リファレンス機能でリファレンスが開かれません)
     - [Q: `--report` というオプションがありますが、これは何ですか？](#q---report-というオプションがありますがこれは何ですか)
     - [Q: Start Task などの操作をショートカットキー一発で呼び出すことはできますか？](#q-start-task-などの操作をショートカットキー一発で呼び出すことはできますか)
+    - [Q: アクセラレーター(Start Task の `(S)` など)が気に入らないので変えたいのですが可能ですか？](#q-アクセラレーターstart-task-の-s-などが気に入らないので変えたいのですが可能ですか)
   - [License](#license)
   - [Author](#author)
 
@@ -58,6 +59,7 @@ tritask.mac マクロを実行するとメニューが表示されるので、�
 
 - [Tritask ウェブサイト](https://github.com/tritask/tritask-web)
 - [tritask-sta の詳しい仕様や使い方について](specification.md)
+  - 各操作リファレンスもあります(たとえば Add task とは何か、など)
 - [tritask-sta 更新履歴](CHANGELOG.md)
 
 ## 強調定義ファイル trita.hilight について
@@ -160,6 +162,51 @@ All 11 keys.
 制約事項:
 
 - tritask_cmd_XXXX.mac は tritask.mac と同じフォルダに置く必要がある
+
+### Q: アクセラレーター(Start Task の `(S)` など)が気に入らないので変えたいのですが可能ですか？
+tritask.mac を編集すれば可能です。
+
+以下のあたりを見てください。
+
+```
+...
+// [[[ menu item start
+#idx=#I_ADD; $items[#idx]         = "(&A)Add Task";
+#idx=#I_ADDINBO; $items[#idx]     = "(&X)Add Inbox";
+#idx=#I_COPY; $items[#idx]        = "(&C)Copy Task";
+#idx=#I_START; $items[#idx]       = "(&S)Start Task";
+#idx=#I_END; $items[#idx]         = "(&E)End Task";
+#idx=#I_CLOSE; $items[#idx]       = "(&Q)Close Task";
+#idx=#I_EDIT_TASK; $items[#idx]   = "(&/)Edit Task";
+#idx=#I_SEP1; $items[#idx]        = "\x01";
+#idx=#I_WALK; $items[#idx]        = "(&D)Walk day <Multi>";
+#idx=#I_WALK_1; $items[#idx]      = "(&1)Walk +1 day(Smart-walk) <Multi>";
+#idx=#I_TO_TODAY; $items[#idx]    = "(&T)Change to Today <Multi>";
+#idx=#I_CLR_DATE; $items[#idx]    = "(&I)Clear Date";
+#idx=#I_SEP2; $items[#idx]        = "\x01";
+#idx=#I_SORT; $items[#idx]        = "(& )Sort";
+#idx=#I_JUMP_STA; $items[#idx]    = "(&J)Jump to Starting-Task";
+#idx=#I_REF; $items[#idx]         = "(&R)Open Reference";
+#idx=#I_SIMPLE_COMP; $items[#idx] = "(&W)Simple Completion";
+#idx=#I_SEP3; $items[#idx]        = "\x01";
+#idx=#I_REPORT_TODAY; $items[#idx]= "(&.)Report Today or Selected-Range";
+#idx=#I_SEP4; $items[#idx]        = "\x01";
+#idx=#I_EDIT_SCRI; $items[#idx]   = "(&P)Programming helper script";
+#idx=#I_EDIT_ME; $items[#idx]     = "(&P)Programming this macro";
+#idx=#idx+1; #maxidx = #idx;
+// menu item end ]]]
+...
+```
+
+たとえば Start Task の発動を S キーから H キーに変えたい場合、以下のように修正します。
+
+```
+#idx=#I_START; $items[#idx]       = "(&S)Start Task";
+
+        ↓
+
+#idx=#I_START; $items[#idx]       = "(&H)Start Task";
+```
 
 ## License
 [MIT License](LICENSE)
