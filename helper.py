@@ -6,7 +6,7 @@ import os
 import sys
 
 NAME    = 'Tritask'
-VERSION = '1.7.1'
+VERSION = '1.8.0'
 INFO    = '{} {}'.format(NAME, VERSION)
 
 MB_OK = 0
@@ -153,6 +153,9 @@ def reference_opener(refinfo):
 
     os.system('start "" "{0}"'.format(reffile_fullpath))
 
+def open_commandline_with_system_association(commandline):
+    os.system('start "" "{:}"'.format(commandline))
+
 def parse_arguments():
     import argparse
 
@@ -195,13 +198,16 @@ def parse_arguments():
     parser.add_argument('--refconf-ext', default='md',
         help='--ref options: The extension which the reference file has.')
 
+    parser.add_argument('--open', default=False, action='store_true',
+        help='[ONLY WINDOWS] Open the commandline of `o:(COMMAND-LINE)` attribute with system association. MUST: -y.')
+
     # reporting
     # ---------
 
     parser.add_argument('--today-dialog-report', default=False, action='store_true',
-        help='Display today report with dialog.')
+        help='[ONLY WINDOWS] Display today report with dialog.')
     parser.add_argument('--selected-range-dialog-report', default=False, action='store_true',
-        help='Display report of selected range with dialog.')
+        help='[ONLY WINDOWS] Display report of selected range with dialog.')
 
     parser.add_argument('--report', default=False, action='store_true',
         help='Debug mode for reporting.')
@@ -210,7 +216,7 @@ def parse_arguments():
     # --------
 
     parser.add_argument('-v', '--version', default=False, action='store_true',
-        help='Display "{}" to version dialog.'.format(INFO))
+        help='[ONLY WINDOWS] Display "{}" to version dialog.'.format(INFO))
 
     parser.add_argument('--debug', default=False, action='store_true',
         help='Debug mode. (Show information to debug.)')
@@ -580,6 +586,17 @@ class Task:
             refinfo.do_not_use_new_creation()
 
         return refinfo
+
+    def get_my_commandline(self):
+        try:
+            commandline = self._options['o']
+        except KeyError:
+            raise RuntimeError('Open Commandline attribute does not exists on this task.')
+
+        if len(commandline) == 0:
+            raise RuntimeError('Open Commandline value must not be a empty. (`o:` is invalid)')
+
+        return commandline
 
     def __str__(self):
         return '{0} {1} {2} {3} {4} {5}'.format(
@@ -1081,6 +1098,16 @@ try:
         task = Task(line)
         refinfo = task.get_my_reference_name()
         reference_opener(refinfo)
+        exit(0)
+
+    if args.open:
+        y = args.y
+        assert_y(y, lines)
+
+        line = lines[y]
+        task = Task(line)
+        commandline = task.get_my_commandline()
+        open_commandline_with_system_association(commandline)
         exit(0)
 
     if args.walk:

@@ -28,6 +28,7 @@ MENU_CONSTRUCTION:
 #I_START       = #cnt; #cnt=#cnt+1;
 #I_END         = #cnt; #cnt=#cnt+1;
 #I_CLOSE       = #cnt; #cnt=#cnt+1;
+#I_EDIT_TASK   = #cnt; #cnt=#cnt+1;
 #I_SEP1        = #cnt; #cnt=#cnt+1;
 #I_WALK        = #cnt; #cnt=#cnt+1;
 #I_WALK_1      = #cnt; #cnt=#cnt+1;
@@ -36,6 +37,7 @@ MENU_CONSTRUCTION:
 #I_SEP2        = #cnt; #cnt=#cnt+1;
 #I_SORT        = #cnt; #cnt=#cnt+1;
 #I_JUMP_STA    = #cnt; #cnt=#cnt+1;
+#I_OPEN_CMD    = #cnt; #cnt=#cnt+1;
 #I_REF         = #cnt; #cnt=#cnt+1;
 #I_SIMPLE_COMP = #cnt; #cnt=#cnt+1;
 #I_SEP3        = #cnt; #cnt=#cnt+1;
@@ -51,6 +53,7 @@ MENU_CONSTRUCTION:
 #idx=#I_START; $items[#idx]       = "(&S)Start Task";
 #idx=#I_END; $items[#idx]         = "(&E)End Task";
 #idx=#I_CLOSE; $items[#idx]       = "(&Q)Close Task";
+#idx=#I_EDIT_TASK; $items[#idx]   = "(&/)Edit Task";
 #idx=#I_SEP1; $items[#idx]        = "\x01";
 #idx=#I_WALK; $items[#idx]        = "(&D)Walk day <Multi>";
 #idx=#I_WALK_1; $items[#idx]      = "(&1)Walk +1 day(Smart-walk) <Multi>";
@@ -60,6 +63,7 @@ MENU_CONSTRUCTION:
 #idx=#I_SORT; $items[#idx]        = "(& )Sort";
 #idx=#I_JUMP_STA; $items[#idx]    = "(&J)Jump to Starting-Task";
 #idx=#I_REF; $items[#idx]         = "(&R)Open Reference";
+#idx=#I_OPEN_CMD; $items[#idx]    = "(&O)Open Commandline";
 #idx=#I_SIMPLE_COMP; $items[#idx] = "(&W)Simple Completion";
 #idx=#I_SEP3; $items[#idx]        = "\x01";
 #idx=#I_REPORT_TODAY; $items[#idx]= "(&.)Report Today or Selected-Range";
@@ -148,6 +152,11 @@ if(result==0){
 #si = result-1;
 $sn = $items[#si];
 
+____BEFORE_ACTION____:
+
+// 日付操作など直接入力を使うことが多いので自動的に IME オフにしてみる.
+call ime_off;
+
 ____ACTIONS____:
 
 if(#si==#I_EDIT_ME){
@@ -185,16 +194,18 @@ if(#si==#I_START){
 }
 
 if(#si==#I_END){
-	// starttime も endtime も両方とも空欄の場合,
-	// 愚直に end すると「まだ開始してないが終了したタスク」となり不正なので,
-	// close の処理を実施する.
+	// starttime  endtime
+	//     -         -       何もしない(startしてないものはendできない)
+	//     -         o       何もしない(startしてないものはendできない)
+	//     o         o       end をキャンセルする.
+	//     o         -       end する
+
 	call get_current_starttime;
 	$cur_starttime = $$return;
 	call get_current_endtime;
 	$cur_endtime = $$return;
-	if($cur_endtime == $EMPTY_TIME && $cur_starttime == $EMPTY_TIME){
-		call DO_START;
-		call DO_END;
+
+	if($cur_starttime == $EMPTY_TIME){
 		endmacro;
 	}
 
@@ -205,6 +216,16 @@ if(#si==#I_END){
 if(#si==#I_CLOSE){
 	call DO_START;
 	call DO_END;
+	endmacro;
+}
+
+if(#si==#I_EDIT_TASK){
+	call DO_EDIT_TASK;
+	endmacro;
+}
+
+if(#si==#I_EDIT_TASK_S){
+	call DO_EDIT_TASK_AND_SELECT;
 	endmacro;
 }
 
@@ -249,6 +270,11 @@ if(#si==#I_REF){
 	endmacro;
 }
 
+if(#si==#I_OPEN_CMD){
+	call DO_OPEN_COMMANDLINE;
+	endmacro;
+}
+
 if(#si==#I_SIMPLE_COMP){
 	call DO_SIMPLE_COMPLETION;
 	endmacro;
@@ -283,9 +309,6 @@ DO_START:
 	return 0;
 
 DO_END:
-	// Start とほぼロジック一緒だけど、
-	// 別々の固有処理が入る可能性が高そうなのでいったんコピペしとく。
-	// その気配が無さそうなら DRY しちゃってもえーよ。
 	call if_blank_then_end;
 
 	golinetop;
@@ -387,6 +410,20 @@ DO_ADD:
 	}
 
 	insert $EMPTY_SORTMARK + " " + $fulldate + " " + $EMPTY_TIME + " " + $EMPTY_TIME + " ";
+
+	return 0;
+
+DO_EDIT_TASK:
+	call if_blank_then_end;
+
+	golinetop;
+	right #POS_DESCRIPTION;
+
+	// 本当は ← 方向で範囲選択したかった(カーソルが #POS_DESCRIPTION に来て扱いやすい)が,
+	// x - #POS_DESCRIPTION などの差分計算では日本語含む場合に狂うので断念.
+	beginsel;
+	golineend;
+	endsel;
 
 	return 0;
 
@@ -529,6 +566,23 @@ DO_OPEN_REFERENCE:
 
 	return 0;
 
+DO_OPEN_COMMANDLINE:
+	call if_not_trita_then_end;
+
+	call get_currentline;
+	$curline = $$return;
+	$query = "o:";
+	if(strstr($curline, $query)==-1){
+		return 0;
+	}
+
+	title "Opening the commandline...";
+	$args = "-i " + $OPENING_FILE_FULLPATH + " -y " + str(y) + " --open";
+	run $COMMANDLINE_HELPER + " " + $args;
+	title 0;
+
+	return 0;
+
 DO_SIMPLE_COMPLETION:
 	call if_not_trita_then_end;
 
@@ -574,6 +628,14 @@ if_blank_then_end:
 if_not_trita_then_end:
 	if(filetype!=".trita"){
 		endmacro;
+	}
+	return 0;
+
+ime_off:
+	#IME_ON = 1;
+	#IME_OFF = 0;
+	if(imestate == #IME_ON){
+		imeswitch;
 	}
 	return 0;
 
