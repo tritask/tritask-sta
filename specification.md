@@ -1,8 +1,6 @@
 # Tritask-sta specification
 Tritask-sta の概要や仕様をまとめる。
 
-対象バージョン: v1.7.1
-
 <!-- toc -->
 - [Tritask-sta specification](#tritask-sta-specification)
 - [タスクのフォーマット](#タスクのフォーマット)
