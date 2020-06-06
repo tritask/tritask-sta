@@ -5,37 +5,44 @@ tritask-sta は [タスク管理メソッド Tritask](https://github.com/tritask
 
 <!-- toc -->
 - [tritask-sta](#tritask-sta)
-    - [特徴](#特徴)
-    - [システム要件](#システム要件)
-    - [インストール](#インストール)
-    - [使い方](#使い方)
-    - [強調定義ファイル trita.hilight について](#強調定義ファイル-tritahilight-について)
-    - [FAQ > インストール](#faq--インストール)
-        - [Q: Python のインストールに失敗します](#q-python-のインストールに失敗します)
-        - [Q: trita ファイルを秀丸エディタに関連付けることができません](#q-trita-ファイルを秀丸エディタに関連付けることができません)
-    - [FAQ > Tritask 操作](#faq--tritask-操作)
-        - [Q: タスクの新規/コピー時にカーソル位置がずれたり余分な空白が入ったりします](#q-タスクの新規コピー時にカーソル位置がずれたり余分な空白が入ったりします)
-        - [Q: なぜかタスク操作が成功しません(黒い画面が出るだけで何も起こりません)](#q-なぜかタスク操作が成功しません黒い画面が出るだけで何も起こりません)
-        - [Q: リファレンス機能でリファレンスが開かれません](#q-リファレンス機能でリファレンスが開かれません)
-    - [FAQ > Tritask 上級者向け](#faq--tritask-上級者向け)
-        - [Q: `--report` というオプションがありますが、これは何ですか？](#q---report-というオプションがありますがこれは何ですか)
-        - [Q: Start Task などの操作をショートカットキー一発で呼び出すことはできますか？](#q-start-task-などの操作をショートカットキー一発で呼び出すことはできますか)
-        - [Q: アクセラレーター(Start Task の `(S)` など)が気に入らないので変えたいのですが可能ですか？](#q-アクセラレーターstart-task-の-s-などが気に入らないので変えたいのですが可能ですか)
-    - [License](#license)
-    - [Author](#author)
+  - [特徴](#特徴)
+  - [システム要件](#システム要件)
+  - [インストール](#インストール)
+  - [使い方](#使い方)
+  - [強調定義ファイル trita.hilight について](#強調定義ファイル-tritahilight-について)
+  - [FAQ > インストール](#faq--インストール)
+    - [Q: Python のインストールに失敗します](#q-python-のインストールに失敗します)
+    - [Q: trita ファイルを秀丸エディタに関連付けることができません](#q-trita-ファイルを秀丸エディタに関連付けることができません)
+  - [FAQ > Tritask 操作](#faq--tritask-操作)
+    - [Q: タスクの新規/コピー時にカーソル位置がずれたり余分な空白が入ったりします](#q-タスクの新規コピー時にカーソル位置がずれたり余分な空白が入ったりします)
+    - [Q: なぜかタスク操作が成功しません(黒い画面が出るだけで何も起こりません)](#q-なぜかタスク操作が成功しません黒い画面が出るだけで何も起こりません)
+    - [Q: リファレンス機能でリファレンスが開かれません](#q-リファレンス機能でリファレンスが開かれません)
+  - [FAQ > Tritask 上級者向け](#faq--tritask-上級者向け)
+    - [Q: `--report` というオプションがありますが、これは何ですか？](#q---report-というオプションがありますがこれは何ですか)
+    - [Q: Start Task などの操作をショートカットキー一発で呼び出すことはできますか？](#q-start-task-などの操作をショートカットキー一発で呼び出すことはできますか)
+    - [Q: アクセラレーター(Start Task の `(S)` など)が気に入らないので変えたいのですが可能ですか？](#q-アクセラレーターstart-task-の-s-などが気に入らないので変えたいのですが可能ですか)
+    - [Q: Find In Today とは何ですか？](#q-find-in-today-とは何ですか)
+  - [License](#license)
+  - [Author](#author)
 
 ## 特徴
-- 秀丸エディタ上でバリバリ操作できる
-- ルーチンタスクが利用可能
+- 秀丸エディタ + Python による実装
+- 操作はツーステップ
+  - 1: ショートカットキーを押してメニューを開く
+  - 2: 実行したい項目を選ぶ
+- ルーチンタスク
   - 例1: 毎日繰り返す → rep:1
   - 例2: 3日毎に繰り返すが休日は省く → rep:3 skip:休
-- タスクの開始、終了、日付操作など主要操作はショートカットキー一発で行える
+- 実行日の操作
+  - Walk day（指定したタスクの実行日をn日後・n日前に変える）
+  - Walk +1 day（指定したタスクを明日にスキップする = 実行日を+1する）
+  - Change to Today（指定したタスクの実行日を今日にする）
 
 ## システム要件
 - Windows 7+
 - Python 3.6
 - 秀丸エディタ
-  - 動作確認を行っているのは V8.69
+  - 動作確認を行っているのは V8.91
   - 古いバージョンだとマクロが動作しないかもしれません
 
 ## インストール
@@ -44,7 +51,6 @@ tritask-sta は [タスク管理メソッド Tritask](https://github.com/tritask
   - ※Python インストール方法など詳細は割愛
 - (2)入手
   - [ダウンロードページ](https://tritask.github.io/tritask-sta-bin/) から zip をダウンロード
-  - git に慣れている方は `git clone` などでも可能
 - (3)秀丸エディタの設定
   - [tritask.mac](tritask.mac) をマクロ登録する
 - (4)データファイルの準備
@@ -55,6 +61,7 @@ tritask-sta は [タスク管理メソッド Tritask](https://github.com/tritask
     - その他 > ファイルタイプ別の設定 > 設定の一覧
     - 適当な設定をコピーして trita 用設定をつくる
     - 秀丸エディタで trita ファイルを開き、trita 用設定を選んだ後、[trita.hilight](trita.hilight) を強調表示設定として読み込む
+    - ダークテーマもあります → [trita_dark.hilight](trita_dark.hilight)
 
 ## 使い方
 tritask.mac マクロを実行するとメニューが表示されるので、実行したい操作を選択します。
@@ -62,7 +69,7 @@ tritask.mac マクロを実行するとメニューが表示されるので、�
 詳細については以下ドキュメントを参照してください。
 
 - [Tritask ウェブサイト](https://github.com/tritask/tritask-web)
-- [tritask-sta の詳しい仕様や使い方について](specification.md)
+- [tritask-sta の使い方や仕様](specification.md)
   - 各操作リファレンスもあります(たとえば Add task とは何か、など)
 - [tritask-sta 更新履歴](CHANGELOG.md)
 
@@ -138,7 +145,7 @@ tritask.mac マクロを実行するとメニューが表示されるので、�
 ## FAQ > Tritask 上級者向け
 
 ### Q: `--report` というオプションがありますが、これは何ですか？
-tritask-sta の中でも特に作者寄り（作者自身が使うことしか考えてない）な集計機能です。trita ファイルの終了済タスクを集計した結果をファイルに保存します。
+trita ファイルの終了済タスクを集計した結果をファイルに保存します。
 
 trita ファイルと同じディレクトリに以下が生成されます:
 
@@ -165,7 +172,7 @@ All 11 keys.
 - 2017/07 : 227 Tasks, Total:58.5[H], Avg:15.5[M]
 ```
 
-こんな具合に日毎、月毎、時間帯毎の集計を保存します。
+こんな具合に日毎、月毎、時間帯毎のレポートを知ることができます。
 
 ### Q: Start Task などの操作をショートカットキー一発で呼び出すことはできますか？
 一部操作のみ v1.6.1+ にて対応しました。
@@ -195,23 +202,7 @@ tritask.mac を編集すれば可能です。
 #idx=#I_ADD; $items[#idx]         = "(&A)Add Task";
 #idx=#I_ADDINBO; $items[#idx]     = "(&X)Add Inbox";
 #idx=#I_COPY; $items[#idx]        = "(&C)Copy Task";
-#idx=#I_START; $items[#idx]       = "(&S)Start Task";
-#idx=#I_END; $items[#idx]         = "(&E)End Task";
-#idx=#I_CLOSE; $items[#idx]       = "(&Q)Close Task";
-#idx=#I_EDIT_TASK; $items[#idx]   = "(&/)Edit Task";
-#idx=#I_SEP1; $items[#idx]        = "\x01";
-#idx=#I_WALK; $items[#idx]        = "(&D)Walk day <Multi>";
-#idx=#I_WALK_1; $items[#idx]      = "(&1)Walk +1 day(Smart-walk) <Multi>";
-#idx=#I_TO_TODAY; $items[#idx]    = "(&T)Change to Today <Multi>";
-#idx=#I_CLR_DATE; $items[#idx]    = "(&I)Clear Date";
-#idx=#I_SEP2; $items[#idx]        = "\x01";
-#idx=#I_SORT; $items[#idx]        = "(& )Sort";
-#idx=#I_JUMP_STA; $items[#idx]    = "(&J)Jump to Starting-Task";
-#idx=#I_REF; $items[#idx]         = "(&R)Open Reference";
-#idx=#I_SIMPLE_COMP; $items[#idx] = "(&W)Simple Completion";
-#idx=#I_SEP3; $items[#idx]        = "\x01";
-#idx=#I_REPORT_TODAY; $items[#idx]= "(&.)Report Today or Selected-Range";
-#idx=#I_SEP4; $items[#idx]        = "\x01";
+……(中略)……
 #idx=#I_EDIT_SCRI; $items[#idx]   = "(&P)Programming helper script";
 #idx=#I_EDIT_ME; $items[#idx]     = "(&P)Programming this macro";
 #idx=#idx+1; #maxidx = #idx;
@@ -228,6 +219,27 @@ tritask.mac を編集すれば可能です。
 
 #idx=#I_START; $items[#idx]       = "(&H)Start Task";
 ```
+
+### Q: Find In Today とは何ですか？
+v1.9.0から追加した機能で、キーワード（範囲選択された文字列）を含む「今日のタスク」すべてを操作対象にする、というものです。
+
+Walk day、Walk +1 day、Change to Today など日付系操作が対応しています（メニューに表示されています）。
+
+使い道は色々ありますが、作者が以下を実現したかったがために誕生しました。
+
+- やりたいこと
+  - テレワーク時は「出社時のみ行うルーチンタスク」をスキップしたい
+  - 出社時は「テレワーク中にのみ行うルーチンタスク」をスキップしたい
+
+これを実現するために、以下のようにします。
+
+- 出社時のみ行うルーチンタスクには office というキーワードを入れておく
+- テレワーク中にのみ行うルーチンタスクには tele というキーワードを入れておく
+- たとえばテレワーク時は、以下の操作をする
+  - office という単語を範囲選択する
+  - Walk +1 day する
+
+こうすると **範囲選択されたキーワード（この場合はoffice）を含む「今日のタスク」** が操作対象になります。結果として、出社時にのみ行うルーチンタスクすべてをまとめて Walk +1 day できます。
 
 ## License
 [MIT License](LICENSE)

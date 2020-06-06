@@ -6,7 +6,7 @@ import os
 import sys
 
 NAME    = 'Tritask'
-VERSION = '1.8.1'
+VERSION = '1.9.0'
 INFO    = '{} {}'.format(NAME, VERSION)
 
 MB_OK = 0
@@ -77,7 +77,6 @@ def assert_y(y, lines):
     if y>=len(lines):
         abort('Out of range the line number "{0}", Max is "{1}".' \
               .format(y, len(lines)))
-
 
 # datetime() 生成はコストがかかる処理なので
 # 一度生成した分を保持しておいて使い回す.
@@ -174,6 +173,9 @@ def parse_arguments():
         help='The start line number of a input line. 0-ORIGIN.')
     parser.add_argument('--y2', default=None, type=int,
         help='The end line number of a input line. 0-ORIGIN.')
+
+    parser.add_argument('--walking-tag', default=None, type=str,
+        help='The keyword in today tasks to walk.')
     parser.add_argument('-d', '--day', default=None, type=int,
         help='The day count to walk.')
 
@@ -333,10 +335,24 @@ class Task:
             return True
         return False
 
+    def is_today_todo(self):
+        m = self._sortmark
+        if m==self.TT:
+            return True
+        return False
+
     def is_hold(self):
         try:
             int(self._options['hold'])
         except (KeyError, ValueError):
+            return False
+        return True
+
+    def is_contained_in_description(self, keyword):
+        description = self._description
+        if len(description.strip()) == 0:
+            return False
+        if description.find(keyword) == -1:
             return False
         return True
 
@@ -743,6 +759,68 @@ def apply_selected_range_report(lines):
     title = '{} Selected-Range report'.format(NAME)
     ok(result_by_str, title)
 
+def apply_to_multiple_line(lines, args, methodname):
+    """ @param methodname 使いたい Task クラスのメソッド名
+    最初は getattr でリフレクションしようとしたが, 
+    ハック要素強すぎて読みづらいので, 条件分岐で泥臭くすることに. """
+    y = args.y
+    y2 = args.y2
+    if y2==None:
+        y2 = y
+    assert_y(y, lines)
+    assert_y(y2, lines)
+
+    for cnt in range(y2-y+1):
+        targetidx = cnt + y
+        line = lines[targetidx]
+        task = Task(line)
+
+        if methodname == 'smartwalk':
+            task.smartwalk()
+        elif methodname == 'walk':
+            day = args.day
+            task.walk(day)
+        elif methodname == 'to_today':
+            task.to_today()
+        else:
+            raise NotImplementedError('apply_to_multiple_line invalid methodname "{}"'.format(methodname))
+
+        lines[targetidx] = str(task)
+
+def apply_to_keyword_today_line(lines, args, methodname):
+    walking_tag = args.walking_tag
+    for curidx,line in enumerate(lines):
+        if line.find(walking_tag) == -1:
+            continue
+
+        task = Task(line)
+        if not(task.is_today_todo()):
+            continue
+        # line,find だけだと「description 以外の部分で一致した」ケースがある.
+        # 高い精度のために, description 内での find も判定する.
+        if not(task.is_contained_in_description(walking_tag)):
+            continue
+
+        if methodname == 'smartwalk':
+            task.smartwalk()
+        elif methodname == 'walk':
+            day = args.day
+            task.walk(day)
+        elif methodname == 'to_today':
+            task.to_today()
+        else:
+            raise NotImplementedError('apply_to_keyword_today_line invalid methodname "{}"'.format(methodname))
+
+        lines[curidx] = str(task)
+
+def apply_to_multiple_line_or_keyword_today_line(lines, args, methodname):
+    walking_tag = args.walking_tag
+    if walking_tag != None:
+        apply_to_keyword_today_line(lines, args, methodname)
+        return
+
+    apply_to_multiple_line(lines, args, methodname)
+
 class reporting:
 
     def main():
@@ -1127,40 +1205,13 @@ try:
         exit(0)
 
     if args.walk:
-        y = args.y
-        y2 = args.y2
-        if y2==None:
-            y2 = y
-        assert_y(y, lines)
-        assert_y(y2, lines)
-        day = args.day
-
-        for cnt in range(y2-y+1):
-            targetidx = cnt + y
-            line = lines[targetidx]
-            task = Task(line)
-            task.walk(day)
-            lines[targetidx] = str(task)
-
+        apply_to_multiple_line_or_keyword_today_line(lines, args, 'walk')
         outfile = infile
         list2file(outfile, lines)
         exit(0)
 
     if args.smartwalk:
-        y = args.y
-        y2 = args.y2
-        if y2==None:
-            y2 = y
-        assert_y(y, lines)
-        assert_y(y2, lines)
-
-        for cnt in range(y2-y+1):
-            targetidx = cnt + y
-            line = lines[targetidx]
-            task = Task(line)
-            task.smartwalk()
-            lines[targetidx] = str(task)
-
+        apply_to_multiple_line_or_keyword_today_line(lines, args, 'smartwalk')
         outfile = infile
         list2file(outfile, lines)
         exit(0)
@@ -1180,21 +1231,7 @@ try:
         exit(0)
 
     if args.to_today:
-        y = args.y
-        y2 = args.y2
-        if y2==None:
-            y2 = y
-        assert_y(y, lines)
-        assert_y(y2, lines)
-        day = args.day
-
-        for cnt in range(y2-y+1):
-            targetidx = cnt + y
-            line = lines[targetidx]
-            task = Task(line)
-            task.to_today()
-            lines[targetidx] = str(task)
-
+        apply_to_multiple_line_or_keyword_today_line(lines, args, 'to_today')
         outfile = infile
         list2file(outfile, lines)
         exit(0)

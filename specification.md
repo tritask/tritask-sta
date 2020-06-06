@@ -1,7 +1,7 @@
 # Tritask-sta specification
 Tritask-sta の概要や仕様をまとめる。
 
-対象バージョン: v1.7.1
+対象バージョン: v1.9.0
 
 <!-- toc -->
 - [Tritask-sta specification](#tritask-sta-specification)
@@ -29,6 +29,7 @@ Tritask-sta の概要や仕様をまとめる。
   - [Start Task](#start-task)
   - [End Task](#end-task)
   - [Close Task](#close-task)
+  - [Edit Task](#edit-task)
   - [================](#-1)
   - [Walk day](#walk-day)
   - [Walk +1 day(Smart-walk)](#walk-1-daysmart-walk)
@@ -38,12 +39,15 @@ Tritask-sta の概要や仕様をまとめる。
   - [Sort](#sort)
   - [Jump to Starting-Task](#jump-to-starting-task)
   - [Open Reference](#open-reference)
+  - [Open Commandline](#open-commandline)
   - [Simple Completion](#simple-completion)
   - [================](#-3)
   - [Report Today or Selected-Range](#report-today-or-selected-range)
   - [================](#-4)
   - [Programming helper script](#programming-helper-script)
   - [Programming this macro](#programming-this-macro)
+- [その他挙動などの解説](#その他挙動などの解説)
+  - [複数選択(Multi)と Find In Today について](#複数選択multiと-find-in-today-について)
 
 # タスクのフォーマット
 
@@ -182,7 +186,7 @@ Tritask-sta では、無効なタスクについては **その実行日を今�
 
 指定は曜日個別、平日、休日（土曜日と日曜日）の三パターンを指定可能。
 
-全ての曜日が指定された場合、永遠にインクリメントされ続けるため、 **ツール側で停止しなければならない**。
+全ての曜日が指定された場合、永遠にインクリメントされ続けるため、 **ツール側で停止しなければならない**。tritask-sta では処置済。
 
 ### ホールド(Hold)
 - `hold:N`
@@ -218,9 +222,11 @@ Tritask-sta では、無効なタスクについては **その実行日を今�
 # 操作一覧
 ![menu](https://user-images.githubusercontent.com/23325839/47847929-16503b80-de10-11e8-9e79-9a6716b0f9b8.jpg)
 
-注釈
+注釈:
+
 - 「指定タスク」とは現在選択している（キャレットがある）行のタスクを指す
 - 「複数選択」とは複数選択している行全てのタスクを指す
+  - ただし後述の「Multi と Find In Today について」も参照
 - Before/After 内では、キャレットは `I` で表記する
 
 ## TEMPLATE
@@ -352,10 +358,28 @@ After(14:30に開始した場合)
   2017/08/04 Fri 14:30 14:30Iタスク1
 ```
 
+## Edit Task
+指定タスクのタスク内容部分を範囲選択する。
+
+
+Before
+
+```
+  2017/08/04 Fri 12:34I      タスク1
+```
+
+After
+
+```
+  2017/08/04 Fri 12:34       タスク1I
+                             ^^^^^^^
+                             この部分が範囲選択される
+```
+
 ## ================
 
 ## Walk day
-指定タスクの日付を指定日だけ増減させる。複数選択可能。
+指定タスクの日付を指定日だけ増減させる。複数選択可能。Find In Today可能。
 
 指定可能な増減値は整数値。
 
@@ -366,10 +390,10 @@ After(14:30に開始した場合)
   - `+1` : 1日後
 
 ## Walk +1 day(Smart-walk)
-`rep:N` があれば N 日後を、無ければ 1 日後(+1)を設定する Walk day。複数選択可能。
+`rep:N` があれば N 日後を、無ければ 1 日後(+1)を設定する Walk day。複数選択可能。Find In Today可能。
 
 ## Change to Today
-指定タスクの日付を今日にする。複数選択可能。
+指定タスクの日付を今日にする。複数選択可能。Find In Today可能。
 
 Before（二つとも選択しているとする）
 
@@ -521,3 +545,22 @@ After
 
 ## Programming this macro
 マクロファイル tritask.mac を秀丸エディタで開く。
+
+# その他挙動などの解説
+
+## 複数選択(Multi)と Find In Today について
+一部の操作は「指定タスク」として「複数(行)のタスク」を指定できる。
+
+指定方法として以下がある。
+
+- Multi …… 複数行(2行以上)範囲選択されたタスクすべて
+- Find In Today …… キーワード(選択範囲の文字列)を持つ「今日のタスク」すべて。 v1.9.0 から追加
+
+つまり指定方法は以下のように区別される。
+
+- 範囲選択していない
+  - → 指定タスク = 現在行
+- 範囲選択しており、範囲は単一行
+  - → 指定タスク = Find In Today
+- 範囲選択しており、範囲は複数行
+  - → 指定タスク = Multi

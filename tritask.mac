@@ -62,9 +62,9 @@ MENU_CONSTRUCTION:
 #idx=#I_CLOSE; $items[#idx]       = "(&Q)Close Task";
 #idx=#I_EDIT_TASK; $items[#idx]   = "(&/)Edit Task";
 #idx=#I_SEP1; $items[#idx]        = "\x01";
-#idx=#I_WALK; $items[#idx]        = "(&D)Walk day <Multi>";
-#idx=#I_WALK_1; $items[#idx]      = "(&1)Walk +1 day(Smart-walk) <Multi>";
-#idx=#I_TO_TODAY; $items[#idx]    = "(&T)Change to Today <Multi>";
+#idx=#I_WALK; $items[#idx]        = "(&D)Walk day <Multi> <FindInToday>";
+#idx=#I_WALK_1; $items[#idx]      = "(&1)Walk +1 day(Smart-walk) <Multi> <FindInToday>";
+#idx=#I_TO_TODAY; $items[#idx]    = "(&T)Change to Today <Multi> <FindInToday>";
 #idx=#I_CLR_DATE; $items[#idx]    = "(&I)Clear Date";
 #idx=#I_SEP2; $items[#idx]        = "\x01";
 #idx=#I_SORT; $items[#idx]        = "(& )Sort";
@@ -672,11 +672,20 @@ delete_timestr:
 
 get_target_lineno_commandline:
 	$targetline = "";
-	if(selecting==1){
-		$targetline = "-y " + str(seltopy) + " --y2 " + str(selendy);
-	}else{
+
+	if(selecting==0){
 		$targetline = "-y " + str(y);
+		return $targetline;
 	}
+
+	if(seltopy!=selendy){
+		$targetline = "-y " + str(seltopy) + " --y2 " + str(selendy);
+		return $targetline;
+	}
+
+	// get current selected range text
+	$walking_tag = gettext(seltopx, seltopy, selendx ,seltopy, 0);
+	$targetline = "--walking-tag " + $walking_tag;
 	return $targetline;
 
 get_currentshortdate:
