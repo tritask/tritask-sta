@@ -6,7 +6,7 @@ import os
 import sys
 
 NAME    = 'Tritask'
-VERSION = '1.8.0'
+VERSION = '1.8.1'
 INFO    = '{} {}'.format(NAME, VERSION)
 
 MB_OK = 0
@@ -421,6 +421,22 @@ class Task:
         # 日付が無い = Inbox タスクの場合は
         # 日付時刻スキップのしようがないので処理スキップ.
         if not(self._date.strip()):
+            return
+
+        # 終了したタスク(終了時刻が存在するタスク)は
+        # 「skip 対象の曜日ではあるが、当該実行日以前に先回りで処理した」
+        # 可能性があるため, skip しない
+        #
+        # 例: 
+        # - 「2019/12/17 Tue             task-A skip:月 rep:1」
+        # - task-A を 2019/12/16 Mon 時点で消化した場合
+        # - skip しない場合、
+        #   「2019/12/16 Mon 19:10 19:23 task-A skip:月 rep:1」
+        #   このようなログにも skip が働いてしまい
+        #   「2019/12/16 Tue 19:10 19:23 task-A skip:月 rep:1」
+        #   このような「嘘のデータ」になってしまう
+        #   (実際に消化したのは Mon なのに Tue だとみなされている)
+        if len(self._endtime.strip())!=0:
             return
 
         y = int(self._date[0:4])

@@ -18,6 +18,13 @@ if(iskeydown(0x11)){
 if(iskeydown(0x12)){
 	#use_mouse_pos = false;
 }
+// Pageup/Pagedown
+if(iskeydown(0x21)){
+	#use_mouse_pos = false;
+}
+if(iskeydown(0x22)){
+	#use_mouse_pos = false;
+}
 
 MENU_CONSTRUCTION:
 
