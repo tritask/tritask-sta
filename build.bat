@@ -32,4 +32,6 @@ mkdir "%DIST_FOLDER_FULLPATH%"
 %COPYCMD% "%thisdir%specification.md" "%DIST_FOLDER_FULLPATH%" %COPYOPT_FILE%
 %COPYCMD% "%thisdir%readme.md" "%DIST_FOLDER_FULLPATH%" %COPYOPT_FILE%
 %COPYCMD% "%thisdir%changelog.md" "%DIST_FOLDER_FULLPATH%" %COPYOPT_FILE%
+%COPYCMD% "%thisdir%readme_development.md" "%DIST_FOLDER_FULLPATH%" %COPYOPT_FILE%
+%COPYCMD% "%thisdir%test_helper.py" "%DIST_FOLDER_FULLPATH%" %COPYOPT_FILE%
 pause

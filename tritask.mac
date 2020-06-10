@@ -35,6 +35,7 @@ MENU_CONSTRUCTION:
 #I_START       = #cnt; #cnt=#cnt+1;
 #I_END         = #cnt; #cnt=#cnt+1;
 #I_CLOSE       = #cnt; #cnt=#cnt+1;
+#I_POST_END    = #cnt; #cnt=#cnt+1;
 #I_EDIT_TASK   = #cnt; #cnt=#cnt+1;
 #I_SEP1        = #cnt; #cnt=#cnt+1;
 #I_WALK        = #cnt; #cnt=#cnt+1;
@@ -59,6 +60,7 @@ MENU_CONSTRUCTION:
 #idx=#I_COPY; $items[#idx]        = "(&C)Copy Task";
 #idx=#I_START; $items[#idx]       = "(&S)Start Task";
 #idx=#I_END; $items[#idx]         = "(&E)End Task";
+#idx=#I_POST_END; $items[#idx]    = "(&0)End Task(Posteriori End)";
 #idx=#I_CLOSE; $items[#idx]       = "(&Q)Close Task";
 #idx=#I_EDIT_TASK; $items[#idx]   = "(&/)Edit Task";
 #idx=#I_SEP1; $items[#idx]        = "\x01";
@@ -220,6 +222,32 @@ if(#si==#I_END){
 	endmacro;
 }
 
+if(#si==#I_POST_END){
+	// 既存タスクを誤って上書きするのを防ぐため,
+	// starttimeもendtimeも両方空のときのみ発動させる.
+	//
+	// starttime  endtime
+	//     -         -       報告的終了する
+	//     -         o       何もしない
+	//     o         o       何もしない
+	//     o         -       何もしない
+
+	call get_current_starttime;
+	$cur_starttime = $$return;
+	call get_current_endtime;
+	$cur_endtime = $$return;
+
+	if($cur_starttime != $EMPTY_TIME){
+		endmacro;
+	}
+	if($cur_endtime != $EMPTY_TIME){
+		endmacro;
+	}
+
+	call DO_POST_END;
+	endmacro;
+}
+
 if(#si==#I_CLOSE){
 	call DO_START;
 	call DO_END;
@@ -337,6 +365,22 @@ DO_END:
 	}else{
 		insert $EMPTY_TIME;
 	}
+
+	return 0;
+
+DO_POST_END:
+	call if_not_trita_then_end;
+	call if_blank_then_end;
+
+	save;
+
+	call get_target_lineno_commandline;
+	$yargs = $$return;
+	title "Do posteriori end...";
+	$args = "-i " + $OPENING_FILE_FULLPATH + " " + $yargs + " --end-now";
+	run $COMMANDLINE_HELPER + " " + $args;
+	title 0;
+	call smart_reload;
 
 	return 0;
 

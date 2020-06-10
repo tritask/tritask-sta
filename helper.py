@@ -6,7 +6,7 @@ import os
 import sys
 
 NAME    = 'Tritask'
-VERSION = '1.9.0'
+VERSION = '1.10.0'
 INFO    = '{} {}'.format(NAME, VERSION)
 
 MB_OK = 0
@@ -70,7 +70,6 @@ def dp(msg):
 
 def abort(msg):
     print('Error: {0}'.format(msg))
-    os.system('pause')
     exit(1)
 
 def assert_y(y, lines):
@@ -117,6 +116,10 @@ def today_and_today_without_time():
     p2 = datetime.datetime(p1.year, p1.month, p1.day)
     return (p1, p2)
 
+def nowtimestr():
+    dt, _ = today_and_today_without_time()
+    return dt.strftime('%H:%M')
+
 def reference_opener(refinfo):
     dirname = args.refconf_dir
     ext = args.refconf_ext
@@ -154,79 +157,6 @@ def reference_opener(refinfo):
 
 def open_commandline_with_system_association(commandline):
     os.system('start "" "{:}"'.format(commandline))
-
-def parse_arguments():
-    import argparse
-
-    parser = argparse.ArgumentParser(
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-
-    # required
-    # --------
-    parser.add_argument('-i', '--input', default=None, required=True,
-        help='A input filename.')
-
-    # options
-    # -------
-
-    parser.add_argument('-y', default=None, type=int,
-        help='The start line number of a input line. 0-ORIGIN.')
-    parser.add_argument('--y2', default=None, type=int,
-        help='The end line number of a input line. 0-ORIGIN.')
-
-    parser.add_argument('--walking-tag', default=None, type=str,
-        help='The keyword in today tasks to walk.')
-    parser.add_argument('-d', '--day', default=None, type=int,
-        help='The day count to walk.')
-
-    parser.add_argument('--to-today', default=False, action='store_true',
-        help='Change the current task day to today. MUST: -y')
-    parser.add_argument('--repeat', default=False, action='store_true',
-        help='Walk day in the current task with rep:n param. MUST: -y.')
-    parser.add_argument('--walk', default=False, action='store_true',
-        help='Walk day in the current task. MUST: -y and -d.')
-    parser.add_argument('--smartwalk', default=False, action='store_true',
-        help='Walk +N or +1 day in the current task. MUST: -y')
-    parser.add_argument('--sort', default=False, action='store_true',
-        help='Do sort.')
-
-    parser.add_argument('--use-simple-completion', default=False, action='store_true',
-        help='Do simple completion of each line, but do not sort and to-today completion.')
-
-    parser.add_argument('--ref', default=False, action='store_true',
-        help='Open the reference writing space. MUST: -y')
-    parser.add_argument('--refconf-dir', default='ref',
-        help='--ref options: The location which the reference file saved.')
-    parser.add_argument('--refconf-ext', default='md',
-        help='--ref options: The extension which the reference file has.')
-
-    parser.add_argument('--open', default=False, action='store_true',
-        help='[ONLY WINDOWS] Open the commandline of `o:(COMMAND-LINE)` attribute with system association. MUST: -y.')
-
-    # reporting
-    # ---------
-
-    parser.add_argument('--today-dialog-report', default=False, action='store_true',
-        help='[ONLY WINDOWS] Display today report with dialog.')
-    parser.add_argument('--selected-range-dialog-report', default=False, action='store_true',
-        help='[ONLY WINDOWS] Display report of selected range with dialog.')
-
-    parser.add_argument('--report', default=False, action='store_true',
-        help='Debug mode for reporting.')
-
-    # deugging
-    # --------
-
-    parser.add_argument('-v', '--version', default=False, action='store_true',
-        help='[ONLY WINDOWS] Display "{}" to version dialog.'.format(INFO))
-
-    parser.add_argument('--debug', default=False, action='store_true',
-        help='Debug mode. (Show information to debug.)')
-    parser.add_argument('--raw-error', default=False, action='store_true',
-        help='Debug mode. (Show raw error message.)')
-
-    args = parser.parse_args()
-    return args
 
 class ReferenceInfo:
     def __init__(self, name, task):
@@ -373,6 +303,14 @@ class Task:
 
         return (result, estimate_minute)
 
+    # Q: complete() は walk や to_today など sortmark が変わるタイミングでは呼ばない？
+    #    -> 呼ばない.
+    #       sortmark は sort すれば反映されるから.
+    # Q: なぜ呼ばない?
+    #    -> 面倒だから.
+    #       この処理には complete 入れている, こっちに入れてない……
+    #       こういったことが起こるが面倒くさい.
+    #       だったら最初から「入れません」「sormarkはsortすれば反映されます」が潔い.
     def complete(self):
         self._determin_dow()
         self._determin_sortmark()
@@ -524,6 +462,10 @@ class Task:
         self._date = dt2datestr(today)
         self._dow  = dt2dowstr(today)
 
+    def start_and_end_manually(self, starttime, endtime):
+        self._starttime = starttime
+        self._endtime = endtime
+
     def walk(self, day):
         # 0123456789
         # YYYY/MM/DD
@@ -630,6 +572,10 @@ class Task:
 
         return commandline
 
+    @property
+    def endtime(self):
+        return self._endtime
+
     def __str__(self):
         return '{0} {1} {2} {3} {4} {5}'.format(
             self._sortmark, self._date, self._dow,
@@ -659,7 +605,7 @@ def apply_skipping(lines):
 
 def apply_completion(lines):
     """ 記述が不足している or 不正なタスクを可能な限り補完する. """
-    predefined_todays = (TODAY_WHEN_EXECUTED, TODAY_WITHOUT_TIME_WHEN_EXECUTED)
+    predefined_todays = today_and_today_without_time()
 
     for i, line in enumerate(lines):
         # today datetime object は生成に時間がかかるので
@@ -683,6 +629,8 @@ def apply_simple_completion(lines):
 
 def apply_today_report(lines):
     today_task_count = 0
+    today_done_task_count = 0
+    today_todo_task_count = 0
     today_estimate_total_minute = 0
 
     for i, line in enumerate(lines):
@@ -696,6 +644,10 @@ def apply_today_report(lines):
             continue
 
         today_task_count += 1
+        if task.is_today_done():
+            today_done_task_count += 1
+        if task.is_today_todo():
+            today_todo_task_count += 1
 
         if not(task.is_today_done()):
             # 未完了(Doneしてない)分のみ見積もりも計算
@@ -718,10 +670,13 @@ def apply_today_report(lines):
     # ダイアログでレポート表示
     # ------------------------
 
-    result_by_str = """Today: {} tasks, {:02}[H] estimated({}).""".format(
+    result_by_str = """Done {}/{} tasks. (Rest:{})
+Your goal time {}. (Rest:{:02}H)""".format(
+        today_done_task_count,
         today_task_count,
+        today_todo_task_count,
+        today_endtime,
         today_estimate_total_hour,
-        today_endtime
     )
 
     title = '{} Today report'.format(NAME)
@@ -820,6 +775,41 @@ def apply_to_multiple_line_or_keyword_today_line(lines, args, methodname):
         return
 
     apply_to_multiple_line(lines, args, methodname)
+
+def apply_posteriori_end_to_the_task(lines, line_number_of_target_task):
+    """指定タスクを報告的終了(Posteriori end)する.
+
+    報告的終了とは「さっきまでをXXXXやってました」を記録すること.
+    - 開始時間は, 直近最も遅く終えたタスクの終了時間(latest done task)
+    - 終了時間は, 現在日時
+
+    今までの「start(これからXXXXをやります)」「end(終わりました)」ではなく,
+    startを省略して一気に「end(さっきまでXXXXをやってました)」を記録する.
+
+    startしそびれたタスクを後から記録するのに便利な方式である.
+
+    @param lines 破壊的 """
+
+    today_task = None
+    for i, line in enumerate(lines):
+        task = Task(line)
+        if not(task.is_today_done()):
+            continue
+        today_task = task
+    # とりあえずソートされていることを前提とする.
+    # その場合, 最も後の行にある today done が latest done task になる.
+    latest_done_task_in_today = today_task
+    if latest_done_task_in_today==None:
+        return
+
+    starttime = latest_done_task_in_today.endtime
+    endtime = nowtimestr()
+
+    line = lines[line_number_of_target_task]
+    task = Task(line)
+    task.start_and_end_manually(starttime, endtime)
+
+    lines[line_number_of_target_task] = str(task)
 
 class reporting:
 
@@ -1129,37 +1119,151 @@ class reporting:
             h_int = int(h_str)
             return '{:02}'.format(h_int)
 
-def __main_from_here__():
-    pass
+def parse_arguments():
+    import argparse
 
-args = parse_arguments()
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-if args.version:
-    open_version_dialog()
-    exit(0)
+    # options
+    # -------
 
-MYDIR = os.path.abspath(os.path.dirname(__file__))
-infile = args.input
-lines = file2list(infile)
+    parser.add_argument('-i', '--input', default=None,
+        help='A input filename.')
 
-logfile = os.path.join(MYDIR, 'tritask.log')
-if not(os.path.exists(logfile)):
-    # new file if does not exists.
-    list2file(logfile, [])
-loglines = file2list(logfile)
+    parser.add_argument('-y', default=None, type=int,
+        help='The start line number of a input line. 0-ORIGIN.')
+    parser.add_argument('--y2', default=None, type=int,
+        help='The end line number of a input line. 0-ORIGIN.')
 
-# 今日の datetime オブジェクトは生成にそこそこ時間がかかり,
-# Task クラス内で毎回つくるとタスク数が多い(例: 1 万件以上)時に待ち時間が増える.
-# なので, 起動時に一度だけつくっておいて, これを使い回すようにする.
-#
-# 使いどころ:
-#     頻繁に呼び出される処理(ソート時に呼び出されるポイントなど)
-#
-# 使わなくてもいいところ:
-#     たまに呼び出される処理(レポート機能など)
-TODAY_WHEN_EXECUTED, TODAY_WITHOUT_TIME_WHEN_EXECUTED = today_and_today_without_time()
+    parser.add_argument('--walking-tag', default=None, type=str,
+        help='The keyword in today tasks to walk.')
+    parser.add_argument('-d', '--day', default=None, type=int,
+        help='The day count to walk.')
 
-try:
+    parser.add_argument('--to-today', default=False, action='store_true',
+        help='Change the current task day to today. MUST: -y')
+    parser.add_argument('--repeat', default=False, action='store_true',
+        help='Walk day in the current task with rep:n param. MUST: -y.')
+    parser.add_argument('--walk', default=False, action='store_true',
+        help='Walk day in the current task. MUST: -y and -d.')
+    parser.add_argument('--smartwalk', default=False, action='store_true',
+        help='Walk +N or +1 day in the current task. MUST: -y')
+    parser.add_argument('--sort', default=False, action='store_true',
+        help='Do sort.')
+
+    parser.add_argument('--use-simple-completion', default=False, action='store_true',
+        help='Do simple completion of each line, but do not sort and to-today completion.')
+
+    parser.add_argument('--ref', default=False, action='store_true',
+        help='Open the reference writing space. MUST: -y')
+    parser.add_argument('--refconf-dir', default='ref',
+        help='--ref options: The location which the reference file saved.')
+    parser.add_argument('--refconf-ext', default='md',
+        help='--ref options: The extension which the reference file has.')
+
+    parser.add_argument('--open', default=False, action='store_true',
+        help='[ONLY WINDOWS] Open the commandline of `o:(COMMAND-LINE)` attribute with system association. MUST: -y.')
+
+    parser.add_argument('--end-now', default=False, action='store_true',
+        help='End the task as `from (endtime of the latest done task) to (now)`. MUST: -y')
+
+    # reporting
+    # ---------
+
+    parser.add_argument('--today-dialog-report', default=False, action='store_true',
+        help='[ONLY WINDOWS] Display today report with dialog.')
+    parser.add_argument('--selected-range-dialog-report', default=False, action='store_true',
+        help='[ONLY WINDOWS] Display report of selected range with dialog.')
+
+    parser.add_argument('--report', default=False, action='store_true',
+        help='Debug mode for reporting.')
+
+    # deugging
+    # --------
+
+    parser.add_argument('-v', '--version', default=False, action='store_true',
+        help='[ONLY WINDOWS] Display "{}" to version dialog.'.format(INFO))
+
+    parser.add_argument('--debug', default=False, action='store_true',
+        help='Debug mode. (Show information to debug.)')
+    parser.add_argument('--raw-error', default=False, action='store_true',
+        help='Debug mode. (Show raw error message.)')
+
+    args = parser.parse_args()
+    return args
+
+def get_default_configs():
+    """ valueについて
+    - None or 文字列で定義する
+    - 二値を表現したい場合は, FalseをNoneで, Trueを任意の文字列で.
+    """
+
+    # 未実装メモ
+    # - debug-display-config-with-dialog-after-sorting
+    #   sort後にdialogすると, なぜか秀丸エディタ側でtritaファイルが空になる.
+    #   西尾開くと空になってない(つまりtritaファイルの中身が実際に空になったわけではない)が,
+    #   非常に心臓に悪い. 原因もわからないのでいったんナシ.
+    #   config のデバッグがしたくなったら別手段を検討しよう.
+
+    configs = {
+        'keywords-to-exclude-from-task-count' : '',
+        'debug-display-config-with-dialog-after-sorting' : None,
+    }
+
+    return configs
+configs_in_global = get_default_configs()
+
+def load_configs_from_lines(configs, lines):
+    """ @param configs ここに反映する. 破壊的. """
+
+    # config行は泥臭く判定する.
+    # 以下あたりを使ってうまく.
+    #
+    #                              config keywords-to-exclude-from-task-count   |●,diary 
+    # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^~~~~~~                                       ^
+    # 1                            2                                            3
+
+    TASKLINE_LENGTH_BEFORE_DESCRIPTION = 29
+    CONFIG_MARK = 'config'
+    CONFIG_DELIMITOR = '|'
+    minimum_length = TASKLINE_LENGTH_BEFORE_DESCRIPTION + len(CONFIG_MARK)
+
+    for i, line in enumerate(lines):
+        if len(line) <= minimum_length:
+            continue
+        # config は inbox task として書くことを想定
+        if line[:TASKLINE_LENGTH_BEFORE_DESCRIPTION].strip() != '':
+            continue
+        if line.find(CONFIG_MARK) == -1:
+            continue
+        # config 表記の先頭はスペースで開けることを想定
+        # この制約により config をオフりたい場合は zconfig
+        #                                          ^
+        #                                 このように何か付けるだけで済む
+        if line.find(' ' + CONFIG_MARK) == -1:
+            continue
+        if line.find(CONFIG_DELIMITOR) == -1:
+            continue
+
+        MAXSPLIT = 1
+        _, kv = line.split(CONFIG_MARK, MAXSPLIT)
+        key, value = kv.split(CONFIG_DELIMITOR, MAXSPLIT)
+
+        # key は whitespace で見た目整えることを想定
+        # 正しい key を得るために whitespace を省く
+        key = key.strip()
+
+        try:
+            configs[key] = value
+        except KeyError:
+            raise KeyError('No config key "{}"'.format(key))
+
+def proceed_lines_and_is_save_required(args, lines):
+    """ @param lines 破壊的 """
+
+    load_configs_from_lines(configs_in_global, lines)
+
     if args.debug and args.y!=None:
         task = Task(lines[args.y])
         print(task)
@@ -1167,22 +1271,22 @@ try:
 
     if args.report:
         reporting.main()
-        exit(0)
+        return False
 
     if args.today_dialog_report:
         apply_today_report(lines)
-        exit(0)
+        return False
 
     if args.selected_range_dialog_report:
         y = args.y
         y2 = args.y2
         if y==None or y2==None:
             ok('Do select lines what you get the report.', NAME)
-            exit(0)
+            return False
         assert_y(y, lines)
         assert_y(y2, lines)
         apply_selected_range_report(lines[y:y2+1])
-        exit(0)
+        return False
 
     if args.ref:
         y = args.y
@@ -1192,7 +1296,7 @@ try:
         task = Task(line)
         refinfo = task.get_my_reference_name()
         reference_opener(refinfo)
-        exit(0)
+        return False
 
     if args.open:
         y = args.y
@@ -1202,19 +1306,23 @@ try:
         task = Task(line)
         commandline = task.get_my_commandline()
         open_commandline_with_system_association(commandline)
-        exit(0)
+        return False
+
+    if args.end_now:
+        y = args.y
+        assert_y(y, lines)
+
+        apply_posteriori_end_to_the_task(lines, y)
+
+        return True
 
     if args.walk:
         apply_to_multiple_line_or_keyword_today_line(lines, args, 'walk')
-        outfile = infile
-        list2file(outfile, lines)
-        exit(0)
+        return True
 
     if args.smartwalk:
         apply_to_multiple_line_or_keyword_today_line(lines, args, 'smartwalk')
-        outfile = infile
-        list2file(outfile, lines)
-        exit(0)
+        return True
 
     if args.repeat:
         y = args.y
@@ -1226,50 +1334,61 @@ try:
 
         lines[y] = str(task)
 
-        outfile = infile
-        list2file(outfile, lines)
-        exit(0)
+        return True
 
     if args.to_today:
         apply_to_multiple_line_or_keyword_today_line(lines, args, 'to_today')
-        outfile = infile
-        list2file(outfile, lines)
-        exit(0)
+        return True
 
     if args.use_simple_completion:
-        outfile = infile
         apply_simple_completion(lines)
-        list2file(outfile, lines)
-        exit(0)
+        return True
 
     if args.sort:
-        outfile = infile
-
-        # before sorting
-        # --------------
         apply_holding(lines)
         apply_skipping(lines)
         apply_completion(lines)
 
-        # sorting
-        # -------
         lines.sort()
 
-        # after sorthing
-        # --------------
-        pass
+        return True
 
-        list2file(outfile, lines)
+    raise RuntimeError('No valid option.')
+
+def ________Main________from_here____():
+    pass
+
+if __name__ == '__main__':
+    args = parse_arguments()
+
+    if args.version:
+        open_version_dialog()
         exit(0)
-except Exception as e:
-    if args.raw_error:
-        raise
-    errmsg = 'Type:{0} Detail:{1}'.format(str(type(e)), str(e))
-    creationdate = datetime.datetime.today().strftime('%Y/%m/%d %H:%M:%S')
-    logmsg = '{0} {1}'.format(creationdate, errmsg)
-    loglines.insert(0, logmsg)
-    list2file(logfile, loglines)
 
-    # open logfile with system association.
-    os.system('start "" "{0}"'.format(logfile))
-    exit(1)
+    MYDIR = os.path.abspath(os.path.dirname(__file__))
+    infile = args.input
+    lines = file2list(infile)
+
+    logfile = os.path.join(MYDIR, 'tritask.log')
+    if not(os.path.exists(logfile)):
+        # new file if does not exists.
+        list2file(logfile, [])
+    loglines = file2list(logfile)
+
+    try:
+        is_save_required = proceed_lines_and_is_save_required(args, lines)
+        if is_save_required:
+            outfile = infile
+            list2file(outfile, lines)
+    except Exception as e:
+        if args.raw_error:
+            raise
+        errmsg = 'Type:{0} Detail:{1}'.format(str(type(e)), str(e))
+        creationdate = datetime.datetime.today().strftime('%Y/%m/%d %H:%M:%S')
+        logmsg = '{0} {1}'.format(creationdate, errmsg)
+        loglines.insert(0, logmsg)
+        list2file(logfile, loglines)
+
+        # open logfile with system association.
+        os.system('start "" "{0}"'.format(logfile))
+        exit(1)
