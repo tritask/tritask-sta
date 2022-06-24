@@ -6,7 +6,7 @@ import os
 import sys
 
 NAME    = 'Tritask'
-VERSION = '1.10.0'
+VERSION = '1.11.0'
 INFO    = '{} {}'.format(NAME, VERSION)
 
 MB_OK = 0
@@ -311,6 +311,8 @@ class Task:
     #       この処理には complete 入れている, こっちに入れてない……
     #       こういったことが起こるが面倒くさい.
     #       だったら最初から「入れません」「sormarkはsortすれば反映されます」が潔い.
+    #    -> 2022/06/16、clone の処理で clonee の sortmark が(walk()してるのに)更新されてないの、ちょっと迷った
+    #       が、実装としては副作用なくて綺麗なのでそのままでいい。
     def complete(self):
         self._determin_dow()
         self._determin_sortmark()
@@ -466,6 +468,11 @@ class Task:
         self._starttime = starttime
         self._endtime = endtime
 
+    def to_todaytodo(self):
+        self.to_today()
+        self.start_and_end_manually(self.EMPTY_TIME, self.EMPTY_TIME)
+        self.complete()
+
     def walk(self, day):
         # 0123456789
         # YYYY/MM/DD
@@ -543,6 +550,34 @@ class Task:
             return
         return
 
+    def reset_clonee_count(self):
+        clonee_count = self.get_clonee_count()
+
+        self._options['clone'] = 0
+
+        # options の tostring を行う機構がないので強引だが文字列的に済ませる
+        before = 'clone:{}'.format(clonee_count)
+        after = 'clone:0'
+        self._description = self._description.replace(before, after)
+
+    def remove_clonee_option(self):
+        clonee_count = self.get_clonee_count()
+
+        del self._options['clone']
+
+        before = 'clone:{}'.format(clonee_count)
+        after = ''
+        self._description = self._description.replace(before, after)
+
+    def get_clonee_count(self):
+        INVALID_MEANS_NO_COUNT_VIRTUALLY = 0
+        try:
+            clonee_count = int(self._options['clone'])
+        except (KeyError, ValueError):
+            clonee_count = INVALID_MEANS_NO_COUNT_VIRTUALLY
+
+        return clonee_count
+
     def get_my_reference_name(self):
         try:
             refname = self._options['ref']
@@ -575,6 +610,10 @@ class Task:
     @property
     def endtime(self):
         return self._endtime
+
+    @property
+    def description(self):
+        return self._description
 
     def __str__(self):
         return '{0} {1} {2} {3} {4} {5}'.format(
@@ -619,11 +658,79 @@ def apply_completion(lines):
         task.complete()
         lines[i] = str(task)
 
-# Simple Completion: Task.complete() を行うだけ.
-def apply_simple_completion(lines):
+def apply_cloning(lines):
+    additonal_lines = []
+
     for i, line in enumerate(lines):
-        # Task の ctor で complete() が走るので
-        # いったん to inst して to str するだけで completion できる.
+
+        if line.find('clone:') == -1:
+            continue
+
+        task = Task(line)
+        clonee_count = task.get_clonee_count()
+        if clonee_count == 0:
+            continue
+
+        task.reset_clonee_count()
+        task.walk(1)
+        task.complete() # sortmark が更新されなくて today todo のままになるので明示的に更新
+        clonee_line = str(task)
+        lines[i] = clonee_line
+
+        for i in range(clonee_count):
+            cloned_task = Task(line)
+            cloned_task.remove_clonee_option()
+            cloned_task.to_todaytodo()
+            cloned_line = str(cloned_task)
+            additonal_lines.append(cloned_line)
+
+    lines.extend(additonal_lines)
+
+def apply_old_clonee_clearning(lines):
+    '''
+    1: 実行日が今日で、`clone:0`を持ってるタスクT1があったら、
+    2: T1のタスク名から`replace('clone:0', '')`してタスク名TNをget
+    3: 実行日が今日で、タスク名がTNであるタスクをサーチ
+    4: 3を全部消す
+
+    先に2を一気に行って対象タスク名のリストを得る。
+    その後、「対象タスク名を含むタスクを消す処理」を通す。
+    まだ汎用性は無さそうなのでここでハードコード。
+    '''
+
+    target_tasknames_of_clonee = []
+    for i, line in enumerate(lines):
+        if line.find('clone:0') == -1:
+            continue
+        task = Task(line)
+        if not task.is_today():
+            continue
+        taskname = task.description
+        # clonee task の名前は、`clone:0` が削除されたものに等しい
+        clonee_taskname = taskname.replace('clone:0','')
+        target_tasknames_of_clonee.append(clonee_taskname)
+
+    # lines から指定行を削除するのはムズいので、
+    # 削除対象行を全部取得した後、それらを remove() で一つずつ消す。
+    # (普通に実装すると index がずれていって狂うので、remove() など探索的な削除メソッドに頼る)
+    removee_lines = []
+    for i, line in enumerate(lines):
+        task = Task(line)
+        if not task.is_today():
+            continue
+        taskname = task.description
+        for clonee_taskname in target_tasknames_of_clonee:
+            if taskname==clonee_taskname:
+                removee_lines.append(line)
+                break
+    for removee_line in removee_lines:
+        lines.remove(removee_line)
+
+def apply_simple_completion(lines):
+    # Simple Completion: Task.complete() を行うだけ.
+    # Task の ctor で complete() が走るので
+    # いったん to inst して to str するだけで completion できる.
+    for i, line in enumerate(lines):
         task = Task(line)
         lines[i] = str(task)
 
@@ -862,6 +969,48 @@ class reporting:
         reporting._report_per_a_classifier(classifier.daily, 'Daily', 'report_daily.md')
         reporting._report_per_a_classifier(classifier.monthly, 'Monthly', 'report_monthly.md')
         reporting._report_per_a_classifier(classifier.hourband, 'Hourly', 'report_hourly.md')
+
+    # あまり上手く練れてないけど、タスクハッシュつくってカウント数でランキングしてみる機能
+    def report_taskcountranking():
+        print('All {} tasks.'.format(len(lines)))
+
+        tasks = []
+        for idx,line in enumerate(lines):
+            task = Task(line)
+
+            # 本当は区切りタスクや今日のタスクなどは省くべきだろうが
+            # とりあえず全部扱ってみる
+
+            tasks.append(task)
+
+        ranking_dict = {}
+        for task in tasks:
+            taskname = task.description
+            not_found = not taskname in ranking_dict
+            if not_found:
+                ranking_dict[taskname] = {}
+                ranking_dict[taskname]['count'] = 0
+            ranking_dict[taskname]['count'] += 1
+
+        # 慣れないのでメモ
+        # - 辞書のソートは items() ベースじゃないとできない
+        # - items() は「(key, value) の tuple」から成るリスト
+        #
+        # item を print してみるとこうなってる
+        #   ('今日のタスク(実行中)', {'count': 1})
+        #   ('--- 明日以降のタスク hold:1', {'count': 1})
+        #   ('明日のタスク', {'count': 3})
+        ranking_asc_sorted_items = sorted(
+            ranking_dict.items(),
+            key=lambda item:item[1]['count']
+        )
+        ranking_desc_sorted_items = reversed(ranking_asc_sorted_items)
+
+        for item in ranking_desc_sorted_items:
+            taskname, count = item[0], item[1]['count']
+            print('- {}: {}'.format(count, taskname))
+
+        #print('All {} no-dup tasked.'.format(len(ranking_asc_sorted_list)))
 
     class Formatter:
         def __init__(self, *args, **kwargs):
@@ -1179,6 +1328,9 @@ def parse_arguments():
     parser.add_argument('--report', default=False, action='store_true',
         help='Debug mode for reporting.')
 
+    parser.add_argument('--task-count-ranking', default=False, action='store_true',
+        help='Display the ranking of given tasks based on occuring-count.')
+
     # deugging
     # --------
 
@@ -1273,6 +1425,10 @@ def proceed_lines_and_is_save_required(args, lines):
         reporting.main()
         return False
 
+    if args.task_count_ranking:
+        reporting.report_taskcountranking()
+        return False
+
     if args.today_dialog_report:
         apply_today_report(lines)
         return False
@@ -1348,6 +1504,9 @@ def proceed_lines_and_is_save_required(args, lines):
         apply_holding(lines)
         apply_skipping(lines)
         apply_completion(lines)
+
+        apply_cloning(lines)
+        apply_old_clonee_clearning(lines)
 
         lines.sort()
 

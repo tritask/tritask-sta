@@ -78,6 +78,17 @@ class TestHelper(unittest.TestCase):
     def _clear_args(self):
         self._args = tritask.parse_arguments()
 
+    def print_lines(self, expect_lines, actual_lines):
+        # unittest が出す . の次行から出したいので。
+        print('')
+
+        print('Expect')
+        for line in expect_lines:
+            print(line)
+        print('Actual')
+        for line in actual_lines:
+            print(line)
+
     def add_task(self, taskname):
         return '{} {} {} {} {} {}'.format(
             emptysortmark,
@@ -389,6 +400,109 @@ class TestHelper(unittest.TestCase):
         )) # 最後に終えたタスクの終了時間が開始時間になり, 現在時間が終了時間になる
 
         self.assertEqual(expect_lines, actual_lines)
+
+    def test_cloning_without_old_deletion(self):
+        lines = []
+        lines.append(self.add_task('1 task'))
+        lines.append(self.add_task('2 task clone:0'))
+        lines.append(self.add_task('3 task clone:1'))
+        lines.append(self.add_task('4 task clone:3'))
+
+        self._clear_args()
+        self._args.sort = True
+        tritask.proceed_lines_and_is_save_required(self._args, lines)
+
+        actual_lines = lines
+        expect_lines = []
+        expect_lines.append('{} 2020/04/01 Wed {} {} 1 task'.format(
+            TT,
+            emptytime,
+            emptytime,
+        ))
+        expect_lines.append('{} 2020/04/01 Wed {} {} 2 task clone:0'.format(
+            TT,
+            emptytime,
+            emptytime,
+        ))
+        expect_lines.append('{} 2020/04/01 Wed {} {} 3 task '.format(
+            TT,
+            emptytime,
+            emptytime,
+        ))
+        expect_lines.append('{} 2020/04/01 Wed {} {} 4 task '.format(
+            TT,
+            emptytime,
+            emptytime,
+        ))
+        expect_lines.append('{} 2020/04/01 Wed {} {} 4 task '.format(
+            TT,
+            emptytime,
+            emptytime,
+        ))
+        expect_lines.append('{} 2020/04/01 Wed {} {} 4 task '.format(
+            TT,
+            emptytime,
+            emptytime,
+        ))
+        expect_lines.append('{} 2020/04/02 Thu {} {} 3 task clone:0'.format(
+            TOM,
+            emptytime,
+            emptytime,
+        ))
+        expect_lines.append('{} 2020/04/02 Thu {} {} 4 task clone:0'.format(
+            TOM,
+            emptytime,
+            emptytime,
+        ))
+
+        self.print_lines(expect_lines, actual_lines)
+        self.assertEqual(expect_lines, actual_lines)
+
+    def test_old_cloning_deletion(self):
+        lines = []
+        lines.append(self.add_task('task '))          # ★2 cloneされたとみなせるこれが死ぬ
+        lines.append(self.add_task('task'))           
+        lines.append(self.add_task('task '))          # ★2 cloneされたとみなせるこれが死ぬ
+        lines.append(self.add_task('task rep:1'))     
+        lines.append(self.add_task('task'))           
+        lines.append(self.add_task(' task'))     
+        lines.append(self.add_task('task clone:0'))   # ★1 これが存在するので
+
+        self._clear_args()
+        self._args.sort = True
+        tritask.proceed_lines_and_is_save_required(self._args, lines)
+
+        actual_lines = lines
+        expect_lines = []
+        expect_lines.append('{} 2020/04/01 Wed {} {}  task'.format(
+            TT,
+            emptytime,
+            emptytime,
+        ))
+        expect_lines.append('{} 2020/04/01 Wed {} {} task'.format(
+            TT,
+            emptytime,
+            emptytime,
+        ))
+        expect_lines.append('{} 2020/04/01 Wed {} {} task'.format(
+            TT,
+            emptytime,
+            emptytime,
+        ))
+        expect_lines.append('{} 2020/04/01 Wed {} {} task clone:0'.format(
+            TT,
+            emptytime,
+            emptytime,
+        ))
+        expect_lines.append('{} 2020/04/01 Wed {} {} task rep:1'.format(
+            TT,
+            emptytime,
+            emptytime,
+        ))
+
+        self.print_lines(expect_lines, actual_lines)
+        self.assertEqual(expect_lines, actual_lines)
+
 
 if __name__ == '__main__':
     unittest.main()

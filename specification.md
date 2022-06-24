@@ -1,54 +1,55 @@
 # Tritask-sta specification
 Tritask-sta の概要や仕様をまとめる。
 
-対象バージョン: v1.10.0
+対象バージョン: v1.11.0
 
 <!-- toc -->
 - [Tritask-sta specification](#tritask-sta-specification)
 - [タスクのフォーマット](#タスクのフォーマット)
 - [タスクの種類](#タスクの種類)
-  - [有効なタスク](#有効なタスク)
-  - [無効なタスク](#無効なタスク)
-  - [無効タスクの対処](#無効タスクの対処)
+    - [有効なタスク](#有効なタスク)
+    - [無効なタスク](#無効なタスク)
+    - [無効タスクの対処](#無効タスクの対処)
 - [各フィールドの実装](#各フィールドの実装)
-  - [マーク](#マーク)
-  - [日付と曜日](#日付と曜日)
-  - [属性](#属性)
-    - [TEMPLATE](#template)
-    - [繰り返し(Repeat)](#繰り返しrepeat)
-    - [スキップ(Skip)](#スキップskip)
-    - [ホールド(Hold)](#ホールドhold)
-    - [リファレンス(Reference)](#リファレンスreference)
-    - [見積もり(Estimate)](#見積もりestimate)
+    - [マーク](#マーク)
+    - [日付と曜日](#日付と曜日)
+    - [属性](#属性)
+        - [TEMPLATE](#template)
+        - [繰り返し(Repeat)](#繰り返しrepeat)
+        - [スキップ(Skip)](#スキップskip)
+        - [ホールド(Hold)](#ホールドhold)
+        - [リファレンス(Reference)](#リファレンスreference)
+        - [見積もり(Estimate)](#見積もりestimate)
+        - [クローン(Clone)](#クローンclone)
 - [操作一覧](#操作一覧)
-  - [TEMPLATE](#template-1)
-  - [================](#)
-  - [Add Task](#add-task)
-  - [Add Inbox](#add-inbox)
-  - [Copy Task](#copy-task)
-  - [Start Task](#start-task)
-  - [End Task](#end-task)
-  - [Close Task](#close-task)
-  - [End Task(Posteriori End)](#end-taskposteriori-end)
-  - [Edit Task](#edit-task)
-  - [================](#-1)
-  - [Walk day](#walk-day)
-  - [Walk +1 day(Smart-walk)](#walk-1-daysmart-walk)
-  - [Change to Today](#change-to-today)
-  - [Clear Date](#clear-date)
-  - [================](#-2)
-  - [Sort](#sort)
-  - [Jump to Starting-Task](#jump-to-starting-task)
-  - [Open Reference](#open-reference)
-  - [Open Commandline](#open-commandline)
-  - [Simple Completion](#simple-completion)
-  - [================](#-3)
-  - [Report Today or Selected-Range](#report-today-or-selected-range)
-  - [================](#-4)
-  - [Programming helper script](#programming-helper-script)
-  - [Programming this macro](#programming-this-macro)
+    - [TEMPLATE](#template-1)
+    - [================](#)
+    - [Add Task](#add-task)
+    - [Add Inbox](#add-inbox)
+    - [Copy Task](#copy-task)
+    - [Start Task](#start-task)
+    - [End Task](#end-task)
+    - [Close Task](#close-task)
+    - [End Task(Posteriori End)](#end-taskposteriori-end)
+    - [Edit Task](#edit-task)
+    - [================](#-1)
+    - [Walk day](#walk-day)
+    - [Walk +1 day(Smart-walk)](#walk-1-daysmart-walk)
+    - [Change to Today](#change-to-today)
+    - [Clear Date](#clear-date)
+    - [================](#-2)
+    - [Sort](#sort)
+    - [Jump to Starting-Task](#jump-to-starting-task)
+    - [Open Reference](#open-reference)
+    - [Open Commandline](#open-commandline)
+    - [Simple Completion](#simple-completion)
+    - [================](#-3)
+    - [Report Today or Selected-Range](#report-today-or-selected-range)
+    - [================](#-4)
+    - [Programming helper script](#programming-helper-script)
+    - [Programming this macro](#programming-this-macro)
 - [その他挙動などの解説](#その他挙動などの解説)
-  - [複数選択(Multi)と Find In Today について](#複数選択multiと-find-in-today-について)
+    - [複数選択(Multi)と Find In Today について](#複数選択multiと-find-in-today-について)
 
 # タスクのフォーマット
 
@@ -131,9 +132,9 @@ Tritask-sta では、無効なタスクについては **その実行日を今�
 以下のパターンのみ有効とする。
 
 - Inbox の場合
-  - 日付も曜日も空文字列の時のみ有効
+    - 日付も曜日も空文字列の時のみ有効
 - Today, Tomorrow, Yesterday の場合
-  - 有効な日付が指定された時のみ有効
+    - 有効な日付が指定された時のみ有効
 
 以下に例を挙げる。
 
@@ -160,9 +161,9 @@ Tritask-sta では、無効なタスクについては **その実行日を今�
 (属性に関する概要や詳細説明)
 
 - 例
-  - `(属性の表記例1)` (例1に関する説明)
-  - `(属性の表記例2)` (例2に関する説明)
-  - ...
+    - `(属性の表記例1)` (例1に関する説明)
+    - `(属性の表記例2)` (例2に関する説明)
+    - ...
 
 ### 繰り返し(Repeat)
 - `rep:N`
@@ -171,9 +172,9 @@ Tritask-sta では、無効なタスクについては **その実行日を今�
 このタスクを終了すると、N日後の Tomorrow Todo が複製される。
 
 - 例
-  - `rep:1` 毎日実行する繰り返し。
-  - `rep:7` 一週間に一度実行する繰り返し。
-  - `rep:30` （おおよそ）一月に一度実行する繰り返し。
+    - `rep:1` 毎日実行する繰り返し。
+    - `rep:7` 一週間に一度実行する繰り返し。
+    - `rep:30` （おおよそ）一月に一度実行する繰り返し。
 
 ### スキップ(Skip)
 - `skip:曜日文字列`
@@ -182,8 +183,8 @@ Tritask-sta では、無効なタスクについては **その実行日を今�
 このタスクは、ソートされた時、日付が「指定された曜日」だった場合に、日付が +1 される。
 
 - 例
-  - `rep:1 skip:休` 平日のみ毎日実行する繰り返し
-  - `rep:1 skip:水日` 水曜日と日曜日以外で毎日実行する繰り返し
+    - `rep:1 skip:休` 平日のみ毎日実行する繰り返し
+    - `rep:1 skip:水日` 水曜日と日曜日以外で毎日実行する繰り返し
 
 指定は曜日個別、平日、休日（土曜日と日曜日）の三パターンを指定可能。
 
@@ -196,9 +197,9 @@ Tritask-sta では、無効なタスクについては **その実行日を今�
 このタスクは、ソートされた時に、今日を `0` として、その差分の日付が常に設定される。
 
 - 例
-  - `hold:0` このタスクは常に日付が今日になる
-  - `hold:1` このタスクは常に日付が明日になる
-  - `hold:-1` このタスクは常に日付が昨日になる
+    - `hold:0` このタスクは常に日付が今日になる
+    - `hold:1` このタスクは常に日付が明日になる
+    - `hold:-1` このタスクは常に日付が昨日になる
 
 ### リファレンス(Reference)
 - `ref:KEY`
@@ -220,6 +221,19 @@ Tritask-sta では、無効なタスクについては **その実行日を今�
 
 この属性を付与しておくと、Report Today 機能で「今日の総見積時間」や「今日すべてのタスクを終えるのにあと何分かかる見込みか」といった情報を算出できるようになる。
 
+### クローン(Clone)
+- `clone:N`
+- N は 0 または 1 以上の整数
+
+N が 0 の時、このタスクは何もしない。
+
+N が 1 以上の時、このタスクはソート時、自身から `clone:N` を省いたタスクを N 個だけ増やす。また自身は日付を +1 する（このとき N の値も 0 に戻す）。
+
+もしソート時に `clone:0` を持つタスクの日付が今日だった場合、そのタスクが増やしたと思われるタスクはすべて削除する。これは前日やり残した「増やしたタスク」をクリアするためである。
+
+- 例
+    - `clone:3` 3個増やす
+
 # 操作一覧
 ![menu](https://user-images.githubusercontent.com/23325839/84207281-f0ab0e00-aaeb-11ea-8848-d3ef7eecefe3.png)
 
@@ -227,7 +241,7 @@ Tritask-sta では、無効なタスクについては **その実行日を今�
 
 - 「指定タスク」とは現在選択している（キャレットがある）行のタスクを指す
 - 「複数選択」とは複数選択している行全てのタスクを指す
-  - ただし後述の「Multi と Find In Today について」も参照
+    - ただし後述の「Multi と Find In Today について」も参照
 - Before/After 内では、キャレットは `I` で表記する
 
 ## TEMPLATE
@@ -412,10 +426,10 @@ After
 指定可能な増減値は整数値。
 
 - 増減値の例
-  - `-3` : 3日前
-  - `0` : 今日
-  - `1` : 1日後
-  - `+1` : 1日後
+    - `-3` : 3日前
+    - `0` : 今日
+    - `1` : 1日後
+    - `+1` : 1日後
 
 ## Walk +1 day(Smart-walk)
 `rep:N` があれば N 日後を、無ければ 1 日後(+1)を設定する Walk day。複数選択可能。Find In Today可能。
@@ -462,8 +476,8 @@ After
 - 日付に対応するマークを付ける（既にマークが記入されている場合は上書きする）
 - 日付に対応する曜日を埋める（既に曜日が記入されている場合は上書きする）
 - 属性の解釈を行い、当該タスクの中身を変更する
-  - 例1: hold がある場合、日付を指定日にホールドする
-  - 例2: skip がある場合、日付が指定スキップ日であれば、そうならなくなるまで日付を増やす
+    - 例1: hold がある場合、日付を指定日にホールドする
+    - 例2: skip がある場合、日付が指定スキップ日であれば、そうならなくなるまで日付を増やす
 
 ## Jump to Starting-Task
 Today Start のある行にジャンプする。
@@ -584,11 +598,11 @@ After
 つまり指定方法は以下のように区別される。
 
 - 範囲選択していない
-  - → 指定タスク = 現在行
+    - → 指定タスク = 現在行
 - 範囲選択しており、範囲は単一行
-  - → 指定タスク = Find In Today
+    - → 指定タスク = Find In Today
 - 範囲選択しており、範囲は複数行
-  - → 指定タスク = Multi
+    - → 指定タスク = Multi
 
 対応している操作には、メニュー項目にその旨を表示している。
 
